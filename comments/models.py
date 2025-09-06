@@ -1,8 +1,20 @@
 import os
 import uuid
+
 from django.core.exceptions import ValidationError
+from django.core.validators import FileExtensionValidator
 from django.utils.text import slugify
 from django.db import models
+from users.models import SpaUser
+
+
+def validate_file_size(value):
+    """Checking the file size (maximum 100 KB for txt"""
+    max_size = 100 * 1024
+    if value.size > max_size and value.name.lower().endswith(".txt"):
+        raise ValidationError(
+            "The size of the TXT file should not exceed 100 KB."
+        )
 
 
 def comments_file_path(instance, filename):
