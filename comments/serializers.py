@@ -50,3 +50,27 @@ class CommentCreateSerializer(serializers.ModelSerializer):
         if request and hasattr(request, "user"):
             validated_data["user"] = request.user
         return super().create(validated_data)
+
+
+class CommentDetailSerializer(serializers.ModelSerializer):
+    user = serializers.StringRelatedField(read_only=True)
+    is_reply = serializers.ReadOnlyField()
+    replies = serializers.SerializerMethodField()
+
+    class Meta:
+        model = Comment
+        fields = [
+            "id",
+            "user",
+            "text",
+            "file",
+            "home_page",
+            "created_at",
+            "parent",
+            "is_reply",
+            "replies",
+        ]
+
+    def get_replies(self, obj):
+        qs = obj.get_replies()
+        return CommentListSerializer(qs, many=True).data
