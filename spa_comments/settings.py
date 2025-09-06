@@ -44,6 +44,8 @@ INSTALLED_APPS = [
     "comments",
 ]
 
+AUTH_USER_MODEL = "users.SpaUser"
+
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
@@ -59,7 +61,7 @@ ROOT_URLCONF = "spa_comments.urls"
 TEMPLATES = [
     {
         "BACKEND": "django.template.backends.django.DjangoTemplates",
-        "DIRS": [BASE_DIR / 'templates'],
+        "DIRS": [BASE_DIR / "templates"],
         "APP_DIRS": True,
         "OPTIONS": {
             "context_processors": [
