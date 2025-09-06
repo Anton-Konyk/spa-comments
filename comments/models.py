@@ -53,6 +53,13 @@ class Comment(models.Model):
         related_name="replies",
     )
 
+    @property
+    def is_reply(self):
+        return self.parent is not None
+
+    def get_replies(self):
+        return self.replies.all().order_by("created_at")
+
     def save(self, *args, **kwargs):
         super().save(*args, **kwargs)
 
