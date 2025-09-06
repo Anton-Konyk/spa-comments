@@ -3,8 +3,10 @@ Django==5.2.6
 dotenv==0.9.9
 flake8==7.3.0
 mccabe==0.7.0
+pillow==11.3.0
 pycodestyle==2.14.0
 pyflakes==3.4.0
 python-dotenv==1.1.1
+ruff==0.12.12
 sqlparse==0.5.3
 tzdata==2025.2
