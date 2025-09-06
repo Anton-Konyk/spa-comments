@@ -22,3 +22,31 @@ class CommentListSerializer(serializers.ModelSerializer):
 
     def get_replies_count(self, obj):
         return obj.replies.count()
+
+
+class CommentCreateSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Comment
+        fields = [
+            "text",
+            "file",
+            "home_page",
+            "parent",
+        ]
+
+    def validate_file(self, value):
+        """
+        Additional file check.
+        Prohibit uploading empty .txt files
+        """
+        if value and value.name.lower().endswith(".txt") and value.size == 0:
+            raise serializers.ValidationError(
+                "You cannot upload an empty TXT file."
+            )
+        return value
+
+    def create(self, validated_data):
+        request = self.context.get("request")
+        if request and hasattr(request, "user"):
+            validated_data["user"] = request.user
+        return super().create(validated_data)
