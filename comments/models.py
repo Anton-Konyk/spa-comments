@@ -1,6 +1,18 @@
+import os
+import uuid
+from django.core.exceptions import ValidationError
+from django.utils.text import slugify
 from django.db import models
 
-# Create your models here.
+
+def comments_file_path(instance, filename):
+    _, extension = os.path.splitext(filename)
+    extension = extension.lower()
+    filename = f"{slugify(instance.user.username)}-{uuid.uuid4()}{extension}"
+
+    return os.path.join("uploads/comments/", filename)
+
+
 class Comment(models.Model):
     user = models.ForeignKey(
         SpaUser, on_delete=models.CASCADE, related_name="comments"
