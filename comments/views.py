@@ -4,6 +4,7 @@ from .models import Comment
 from .serializers import (
     CommentListSerializer,
     CommentDetailSerializer,
+    CommentCreateSerializer,
 )
 
 
@@ -29,3 +30,16 @@ class CommentDetailView(generics.RetrieveAPIView):
         .prefetch_related("replies__user", "replies__replies")
     serializer_class = CommentDetailSerializer
     permission_classes = [IsAuthenticatedOrReadOnly]
+
+
+class CommentCreateView(generics.CreateAPIView):
+    """
+    POST /api/comments/
+    Creates a new comment.
+    """
+    queryset = Comment.objects.all()
+    serializer_class = CommentCreateSerializer
+    permission_classes = [IsAuthenticatedOrReadOnly]
+
+    def perform_create(self, serializer):
+        serializer.save(user=self.request.user)
