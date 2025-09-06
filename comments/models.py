@@ -5,6 +5,8 @@ from django.core.exceptions import ValidationError
 from django.core.validators import FileExtensionValidator
 from django.utils.text import slugify
 from django.db import models
+from PIL import Image
+
 from users.models import SpaUser
 
 
@@ -51,3 +53,15 @@ class Comment(models.Model):
         related_name="replies",
     )
 
+    def save(self, *args, **kwargs):
+        super().save(*args, **kwargs)
+
+        if self.file and self.file.name.lower().endswith(
+            (".jpg", ".jpeg", ".png", ".gif")
+        ):
+            file_path = self.file.path
+            with Image.open(file_path) as img:
+                if img.width > 320 or img.height > 240:
+                    img.thumbnail((320, 240))
+                    img = img.convert("RGB")
+                    img.save(file_path)
