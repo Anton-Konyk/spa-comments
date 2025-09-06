@@ -65,3 +65,6 @@ class Comment(models.Model):
                     img.thumbnail((320, 240))
                     img = img.convert("RGB")
                     img.save(file_path)
+    def __str__(self):
+        username = self.user.username if self.user else "Anonymous"
+        return f"{username}: {self.text[:25].replace('\n', ' ')}"
