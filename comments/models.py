@@ -10,10 +10,14 @@ from PIL import Image
 from users.models import SpaUser
 
 
+IMAGE_RESIZE_WIDTH = 320
+IMAGE_RESIZE_HEIGHT = 240
+MAX_TXT_FILE_SIZE = 100 * 1024
+
+
 def validate_file_size(value):
     """Checking the file size (maximum 100 KB for txt"""
-    max_size = 100 * 1024
-    if value.size > max_size and value.name.lower().endswith(".txt"):
+    if value.size > MAX_TXT_FILE_SIZE and value.name.lower().endswith(".txt"):
         raise ValidationError(
             "The size of the TXT file should not exceed 100 KB."
         )
@@ -68,8 +72,8 @@ class Comment(models.Model):
         ):
             file_path = self.file.path
             with Image.open(file_path) as img:
-                if img.width > 320 or img.height > 240:
-                    img.thumbnail((320, 240))
+                if img.width > IMAGE_RESIZE_WIDTH or img.height > IMAGE_RESIZE_HEIGHT:
+                    img.thumbnail((IMAGE_RESIZE_WIDTH, IMAGE_RESIZE_HEIGHT))
                     img = img.convert("RGB")
                     img.save(file_path)
 
