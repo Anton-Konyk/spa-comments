@@ -75,4 +75,5 @@ class CommentDetailSerializer(serializers.ModelSerializer):
 
     def get_replies(self, obj):
         qs = obj.get_replies()
-        return CommentListSerializer(qs, many=True).data
+        return (
+            CommentListSerializer(qs, many=True, context=self.context).data)
