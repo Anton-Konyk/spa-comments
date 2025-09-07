@@ -1,11 +1,13 @@
 from rest_framework import serializers
+
+from users.serializers import SpaUserSerializer
 from .models import Comment
 from users.models import SpaUser
 
 
 class CommentListSerializer(serializers.ModelSerializer):
     """Serializer for a list of comments with nested replies"""
-    user = serializers.StringRelatedField(read_only=True)
+    user = SpaUserSerializer(read_only=True)
     is_reply = serializers.ReadOnlyField()
     replies_count = serializers.SerializerMethodField()
 
@@ -53,7 +55,7 @@ class CommentCreateSerializer(serializers.ModelSerializer):
 
 
 class CommentDetailSerializer(serializers.ModelSerializer):
-    user = serializers.StringRelatedField(read_only=True)
+    user = SpaUserSerializer(read_only=True)
     is_reply = serializers.ReadOnlyField()
     replies = serializers.SerializerMethodField()
 
