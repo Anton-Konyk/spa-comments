@@ -1,8 +1,13 @@
+import bleach
 from rest_framework import serializers
 
 from users.serializers import SpaUserSerializer
 from .models import Comment
-from users.models import SpaUser
+
+
+ALLOWED_TAGS = ["a", "code", "i", "strong"]
+ALLOWED_ATTRS = {"a": ["href", "title"]}
+ALLOWED_PROTOCOLS = ["http", "https"]
 
 
 class CommentListSerializer(serializers.ModelSerializer):
@@ -46,6 +51,25 @@ class CommentCreateSerializer(serializers.ModelSerializer):
                 "You cannot upload an empty TXT file."
             )
         return value
+
+    def validate_text(self, value: str) -> str:
+        """
+        User text cleaning:
+        - leave only safe tags (<a>, <code>, <i>, <strong>);
+        - allow only href and title for <a>;
+        - filter link protocols (http/https);
+        - remove prohibited tags, comments and potential XSS.
+        """
+        cleaned = bleach.clean(
+            text=value,
+            tags=ALLOWED_TAGS,
+            attributes=ALLOWED_ATTRS,
+            protocols=ALLOWED_PROTOCOLS,
+            strip=True,  # cut forbidden tags
+            strip_comments=True,  # remove html comments
+        )
+
+        return cleaned
 
     def create(self, validated_data):
         request = self.context.get("request")
