@@ -1,6 +1,8 @@
+import requests
 import bleach
 from rest_framework import serializers
 
+from spa_comments import settings
 from users.serializers import SpaUserSerializer
 from .models import Comment
 
@@ -32,6 +34,8 @@ class CommentListSerializer(serializers.ModelSerializer):
 
 
 class CommentCreateSerializer(serializers.ModelSerializer):
+    recaptcha_token = serializers.CharField(write_only=True)
+
     class Meta:
         model = Comment
         fields = [
@@ -39,7 +43,23 @@ class CommentCreateSerializer(serializers.ModelSerializer):
             "file",
             "home_page",
             "parent",
+            "recaptcha_token",
         ]
+
+    def validate(self, data):
+        token = data.get("recaptcha_token")
+        secret = settings.RECAPTCHA_SECRET_KEY
+
+        response = requests.post(
+            "https://www.google.com/recaptcha/api/siteverify",
+            data={"secret": secret, "response": token},
+        )
+        result = response.json()
+
+        if not result.get("success"):
+            raise serializers.ValidationError({"recaptcha": "reCAPTCHA verification failed"})
+
+        return data
 
     def validate_file(self, value):
         """
@@ -72,9 +92,12 @@ class CommentCreateSerializer(serializers.ModelSerializer):
         return cleaned
 
     def create(self, validated_data):
+        validated_data.pop("recaptcha_token", None)
+
         request = self.context.get("request")
         if request and hasattr(request, "user"):
             validated_data["user"] = request.user
+
         return super().create(validated_data)
 
 
