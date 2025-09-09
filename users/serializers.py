@@ -1,3 +1,4 @@
+from drf_spectacular.utils import extend_schema_field
 from rest_framework import serializers
 from .models import SpaUser
 
@@ -9,7 +10,8 @@ class SpaUserSerializer(serializers.ModelSerializer):
         model = SpaUser
         fields = ["id", "username", "avatar"]
 
-    def get_avatar(self, obj):
+    @extend_schema_field(str)
+    def get_avatar(self, obj) -> str | None:
         request = self.context.get("request")
         if obj.avatar and hasattr(obj.avatar, "url"):
             if request:
