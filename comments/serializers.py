@@ -5,6 +5,7 @@ from rest_framework import serializers
 from spa_comments import settings
 from users.serializers import SpaUserSerializer
 from .models import Comment
+from drf_spectacular.utils import extend_schema_field
 
 
 ALLOWED_TAGS = ["a", "code", "i", "strong"]
@@ -15,8 +16,8 @@ ALLOWED_PROTOCOLS = ["http", "https"]
 class CommentListSerializer(serializers.ModelSerializer):
     """Serializer for a list of comments with nested replies"""
     user = SpaUserSerializer(read_only=True)
-    is_reply = serializers.ReadOnlyField()
-    replies_count = serializers.SerializerMethodField()
+    is_reply = serializers.SerializerMethodField()
+    replies_count = serializers.SerializerMethodField(method_name="get_replies_count")
 
     class Meta:
         model = Comment
@@ -29,7 +30,12 @@ class CommentListSerializer(serializers.ModelSerializer):
             "replies_count",
         ]
 
-    def get_replies_count(self, obj):
+    @extend_schema_field(bool)
+    def get_is_reply(self, obj) -> bool:
+        return obj.is_reply
+
+    @extend_schema_field(int)
+    def get_replies_count(self, obj) -> int:
         return obj.replies.count()
 
 
@@ -103,8 +109,8 @@ class CommentCreateSerializer(serializers.ModelSerializer):
 
 class CommentDetailSerializer(serializers.ModelSerializer):
     user = SpaUserSerializer(read_only=True)
-    is_reply = serializers.ReadOnlyField()
-    replies = serializers.SerializerMethodField()
+    is_reply = serializers.SerializerMethodField()
+    replies = serializers.SerializerMethodField(method_name="get_replies")
 
     class Meta:
         model = Comment
@@ -120,7 +126,11 @@ class CommentDetailSerializer(serializers.ModelSerializer):
             "replies",
         ]
 
+    @extend_schema_field(bool)
+    def get_is_reply(self, obj) -> bool:
+        return obj.is_reply
+
+    @extend_schema_field(CommentListSerializer(many=True))
     def get_replies(self, obj):
         qs = obj.get_replies()
-        return (
-            CommentListSerializer(qs, many=True, context=self.context).data)
+        return CommentListSerializer(qs, many=True, context=self.context).data
