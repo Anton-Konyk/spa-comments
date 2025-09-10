@@ -7,20 +7,28 @@
         <tr>
           <th>Avatar</th>
           <th @click="sortBy('username')" style="cursor: pointer">
-            User Name ⇅	<span v-if="sortField === 'username'">{{ sortDirection === 'asc' ? '▲' : '▼' }}</span>
+            User Name ⇅
+            <span v-if="sortField === 'username'">{{ sortDirection === 'asc' ? '▲' : '▼' }}</span>
           </th>
           <th @click="sortBy('email')" style="cursor: pointer">
-            E-mail ⇅ <span v-if="sortField === 'email'">{{ sortDirection === 'asc' ? '▲' : '▼' }}</span>
+            E-mail ⇅
+            <span v-if="sortField === 'email'">{{ sortDirection === 'asc' ? '▲' : '▼' }}</span>
           </th>
           <th>Comment</th>
           <th @click="sortBy('created_at')" style="cursor: pointer">
-            Created At ⇅	<span v-if="sortField === 'created_at'">{{ sortDirection === 'asc' ? '▲' : '▼' }}</span>
+            Created At ⇅
+            <span v-if="sortField === 'created_at'">{{ sortDirection === 'asc' ? '▲' : '▼' }}</span>
           </th>
           <th>Replies</th>
         </tr>
       </thead>
       <tbody>
-        <tr v-for="comment in sortedComments" :key="comment.id">
+        <tr
+          v-for="comment in sortedComments"
+          :key="comment.id"
+          @click="goToDetail(comment.id)"
+          style="cursor:pointer;"
+        >
           <td>
             <img
               :src="comment.user.avatar || 'https://via.placeholder.com/40'"
@@ -66,49 +74,31 @@
   </div>
 </template>
 
-<script lang="ts">
-import { defineComponent, ref, computed, onMounted } from 'vue'
+<script>
+import { ref, computed, onMounted } from 'vue'
+import { useRouter } from 'vue-router'
 import axios from 'axios'
-import { usePagination } from '../composables/usePagination'
+import { usePagination } from '../composables/usePagination.js'
 
-interface User {
-  id: number
-  username: string
-  email: string | null
-  avatar: string | null
-}
-
-interface Comment {
-  id: number
-  text: string
-  created_at: string
-  replies_count: number
-  user: User
-}
-
-interface AppConfig {
-  BACKEND_URL: string
-  PAGE_SIZE: number
-}
-
-export default defineComponent({
+export default {
   name: 'CommentList',
   setup() {
-    const comments = ref<Comment[]>([])
+    const router = useRouter()
+    const comments = ref([])
     const loading = ref(true)
-    const config = ref<AppConfig | null>(null)
+    const config = ref(null)
     const currentPage = ref(1)
     const totalPages = ref(1)
     const inputPage = ref(1)
 
-    const sortField = ref<'username' | 'email' | 'created_at' | null>(null)
-    const sortDirection = ref<'asc' | 'desc'>('asc')
+    const sortField = ref(null)
+    const sortDirection = ref('asc')
 
-    let pagination: ReturnType<typeof usePagination<Comment>>
+    let pagination
 
     const fetchConfig = async () => {
       try {
-        const response = await axios.get<AppConfig>(
+        const response = await axios.get(
           `${import.meta.env.VITE_BACKEND_URL}/api/v1/config/?format=json&lang=en`
         )
         config.value = response.data
@@ -119,13 +109,13 @@ export default defineComponent({
 
     const initPagination = () => {
       if (!config.value) return
-      pagination = usePagination<Comment>(
+      pagination = usePagination(
         `${config.value.BACKEND_URL}/api/v1/comments/`,
         config.value.PAGE_SIZE
       )
     }
 
-    const fetchPage = async (page: number) => {
+    const fetchPage = async (page) => {
       if (!pagination) return
       loading.value = true
       await pagination.fetchPage(page)
@@ -138,10 +128,10 @@ export default defineComponent({
 
     const prevPage = async () => fetchPage(currentPage.value - 1)
     const nextPage = async () => fetchPage(currentPage.value + 1)
-    const goToPage = async (page: number) => fetchPage(page)
+    const goToPage = async (page) => fetchPage(page)
     const goToInputPage = async () => fetchPage(inputPage.value)
 
-    const sortBy = (field: 'username' | 'email' | 'created_at') => {
+    const sortBy = (field) => {
       if (sortField.value === field) {
         sortDirection.value = sortDirection.value === 'asc' ? 'desc' : 'asc'
       } else {
@@ -153,8 +143,8 @@ export default defineComponent({
     const sortedComments = computed(() => {
       if (!sortField.value) return comments.value
       return [...comments.value].sort((a, b) => {
-        let valA: string | number | null = null
-        let valB: string | number | null = null
+        let valA = null
+        let valB = null
 
         if (sortField.value === 'username') {
           valA = a.user.username || ''
@@ -173,10 +163,14 @@ export default defineComponent({
       })
     })
 
-    const truncateText = (text: string | null) => {
+    const truncateText = (text) => {
       const limit = Number(import.meta.env.VITE_COMMENT_TRUNCATE_LENGTH || 100)
       if (!text) return ''
       return text.length > limit ? text.slice(0, limit) + '…' : text
+    }
+
+    const goToDetail = (id) => {
+      router.push({ name: 'CommentDetail', params: { id } })
     }
 
     onMounted(async () => {
@@ -200,9 +194,10 @@ export default defineComponent({
       goToPage,
       goToInputPage,
       truncateText,
+      goToDetail,
     }
   },
-})
+}
 </script>
 
 <style scoped>
