@@ -6,14 +6,21 @@
       <thead>
         <tr>
           <th>Avatar</th>
-          <th>User Name</th>
+          <th @click="sortBy('username')" style="cursor: pointer">
+            User Name ⇅	<span v-if="sortField === 'username'">{{ sortDirection === 'asc' ? '▲' : '▼' }}</span>
+          </th>
+          <th @click="sortBy('email')" style="cursor: pointer">
+            E-mail ⇅ <span v-if="sortField === 'email'">{{ sortDirection === 'asc' ? '▲' : '▼' }}</span>
+          </th>
           <th>Comment</th>
-          <th>Created At</th>
+          <th @click="sortBy('created_at')" style="cursor: pointer">
+            Created At ⇅	<span v-if="sortField === 'created_at'">{{ sortDirection === 'asc' ? '▲' : '▼' }}</span>
+          </th>
           <th>Replies</th>
         </tr>
       </thead>
       <tbody>
-        <tr v-for="comment in comments" :key="comment.id">
+        <tr v-for="comment in sortedComments" :key="comment.id">
           <td>
             <img
               :src="comment.user.avatar || 'https://via.placeholder.com/40'"
@@ -23,7 +30,8 @@
             />
           </td>
           <td>{{ comment.user.username || 'Anonymous' }}</td>
-          <td>{{ comment.text || '' }}</td>
+          <td>{{ comment.user.email || '—' }}</td>
+          <td>{{ truncateText(comment.text) }}</td>
           <td>{{ comment.created_at }}</td>
           <td>{{ comment.replies_count ?? 0 }}</td>
         </tr>
@@ -32,16 +40,16 @@
 
     <!-- Pagination Controls -->
     <div v-if="totalPages > 1" style="margin-top: 10px;">
-      <button @click="goToPage(1)" :disabled="currentPage === 1">Первая</button>
-      <button @click="prevPage" :disabled="currentPage === 1">Предыдущая</button>
+      <button @click="goToPage(1)" :disabled="currentPage === 1">First</button>
+      <button @click="prevPage" :disabled="currentPage === 1">Previous</button>
 
-      <span>Страница {{ currentPage }} из {{ totalPages }}</span>
+      <span>Page {{ currentPage }} from {{ totalPages }}</span>
 
-      <button @click="nextPage" :disabled="currentPage === totalPages">Следующая</button>
-      <button @click="goToPage(totalPages)" :disabled="currentPage === totalPages">Последняя</button>
+      <button @click="nextPage" :disabled="currentPage === totalPages">Next</button>
+      <button @click="goToPage(totalPages)" :disabled="currentPage === totalPages">Last</button>
 
       <span style="margin-left: 10px;">
-        Перейти на страницу:
+        Go to page:
         <input
           type="number"
           v-model.number="inputPage"
@@ -59,13 +67,14 @@
 </template>
 
 <script lang="ts">
-import { defineComponent, ref, onMounted } from 'vue'
+import { defineComponent, ref, computed, onMounted } from 'vue'
 import axios from 'axios'
 import { usePagination } from '../composables/usePagination'
 
 interface User {
   id: number
   username: string
+  email: string | null
   avatar: string | null
 }
 
@@ -92,13 +101,15 @@ export default defineComponent({
     const totalPages = ref(1)
     const inputPage = ref(1)
 
-    // обычная переменная для pagination, TS не будет ругаться
+    const sortField = ref<'username' | 'email' | 'created_at' | null>(null)
+    const sortDirection = ref<'asc' | 'desc'>('asc')
+
     let pagination: ReturnType<typeof usePagination<Comment>>
 
     const fetchConfig = async () => {
       try {
         const response = await axios.get<AppConfig>(
-          'http://localhost:8000/api/v1/config/?format=json&lang=en'
+          `${import.meta.env.VITE_BACKEND_URL}/api/v1/config/?format=json&lang=en`
         )
         config.value = response.data
       } catch (error) {
@@ -108,7 +119,6 @@ export default defineComponent({
 
     const initPagination = () => {
       if (!config.value) return
-      // инициализация пагинации с BACKEND_URL и PAGE_SIZE из конфига
       pagination = usePagination<Comment>(
         `${config.value.BACKEND_URL}/api/v1/comments/`,
         config.value.PAGE_SIZE
@@ -131,6 +141,44 @@ export default defineComponent({
     const goToPage = async (page: number) => fetchPage(page)
     const goToInputPage = async () => fetchPage(inputPage.value)
 
+    const sortBy = (field: 'username' | 'email' | 'created_at') => {
+      if (sortField.value === field) {
+        sortDirection.value = sortDirection.value === 'asc' ? 'desc' : 'asc'
+      } else {
+        sortField.value = field
+        sortDirection.value = 'asc'
+      }
+    }
+
+    const sortedComments = computed(() => {
+      if (!sortField.value) return comments.value
+      return [...comments.value].sort((a, b) => {
+        let valA: string | number | null = null
+        let valB: string | number | null = null
+
+        if (sortField.value === 'username') {
+          valA = a.user.username || ''
+          valB = b.user.username || ''
+        } else if (sortField.value === 'email') {
+          valA = a.user.email || ''
+          valB = b.user.email || ''
+        } else if (sortField.value === 'created_at') {
+          valA = new Date(a.created_at).getTime()
+          valB = new Date(b.created_at).getTime()
+        }
+
+        if (valA < valB) return sortDirection.value === 'asc' ? -1 : 1
+        if (valA > valB) return sortDirection.value === 'asc' ? 1 : -1
+        return 0
+      })
+    })
+
+    const truncateText = (text: string | null) => {
+      const limit = Number(import.meta.env.VITE_COMMENT_TRUNCATE_LENGTH || 100)
+      if (!text) return ''
+      return text.length > limit ? text.slice(0, limit) + '…' : text
+    }
+
     onMounted(async () => {
       await fetchConfig()
       initPagination()
@@ -139,14 +187,19 @@ export default defineComponent({
 
     return {
       comments,
+      sortedComments,
       loading,
       currentPage,
       totalPages,
       inputPage,
+      sortField,
+      sortDirection,
+      sortBy,
       prevPage,
       nextPage,
       goToPage,
       goToInputPage,
+      truncateText,
     }
   },
 })
@@ -159,6 +212,7 @@ table {
 }
 th {
   background-color: #f0f0f0;
+  user-select: none;
 }
 td,
 th {
