@@ -1,16 +1,15 @@
 <template>
   <div id="app">
     <h1>SPA Comments</h1>
-    <CommentList />
+    <router-view />
   </div>
 </template>
 
-<script lang="ts">
-import { defineComponent } from 'vue'
+<script>
 import CommentList from './components/CommentList.vue'
 
-export default defineComponent({
+export default {
   name: 'App',
   components: { CommentList }
-})
+}
 </script>
