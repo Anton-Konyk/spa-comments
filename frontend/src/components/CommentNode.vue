@@ -1,37 +1,47 @@
 <template>
   <div
     class="comment-node"
+    :id="`comment-${comment.id}`"
     :level="level"
     :style="containerStyle"
   >
-    <!-- header: avatar + meta -->
+    <!-- Header: avatar + meta + actions -->
     <div class="comment-header">
-      <img
-        v-if="comment?.user?.avatar"
-        :src="comment.user.avatar"
-        alt="avatar"
-        class="avatar"
-        width="48"
-        height="48"
-      />
-      <div class="meta">
-        <div class="meta-top">
-          <span class="username">{{ comment?.user?.username || 'Anonymous' }}</span>
-          <span class="created"> · {{ formatDate(comment?.created_at) }}</span>
+      <div class="header-left">
+        <img
+          v-if="comment?.user?.avatar"
+          :src="comment.user.avatar"
+          alt="avatar"
+          class="avatar"
+          width="48"
+          height="48"
+        />
+        <div class="meta">
+          <div class="meta-top">
+            <span class="username">{{ comment?.user?.username || 'Anonymous' }}</span>
+            <span class="created"> · {{ formatDate(comment?.created_at) }}</span>
+          </div>
         </div>
+      </div>
+
+      <div class="header-actions">
+        <button class="reply-btn" @click.stop="emitReply">
+          Reply
+        </button>
       </div>
     </div>
 
-    <!-- body: text -->
+    <!-- Body -->
     <div class="comment-body" v-html="comment?.text || ''"></div>
 
-    <!-- replies: recursive -->
+    <!-- Nested replies -->
     <div v-if="comment?.replies && comment.replies.length" class="replies">
       <CommentNode
         v-for="reply in comment.replies"
         :key="reply.id"
         :comment="reply"
         :level="level + 1"
+        @reply="$emit('reply', $event)"
       />
     </div>
   </div>
@@ -49,11 +59,11 @@ export default defineComponent({
   methods: {
     formatDate(iso) {
       if (!iso) return ''
-      try {
-        return new Date(iso).toLocaleString()
-      } catch {
-        return iso
-      }
+      try { return new Date(iso).toLocaleString() } catch { return iso }
+    },
+    // Emit the whole comment object so the parent can show preview text/user
+    emitReply() {
+      this.$emit('reply', this.comment)
     }
   },
   computed: {
@@ -79,7 +89,7 @@ export default defineComponent({
   background: #ffffff;
 }
 
-/* Left stripe for nesting level */
+/* Left pastel stripe by level */
 .comment-node::before {
   content: "";
   position: absolute;
@@ -91,12 +101,21 @@ export default defineComponent({
   background: var(--level-color);
 }
 
-/* header */
+/* Header layout */
 .comment-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 8px;
+}
+.header-left {
   display: flex;
   gap: 12px;
   align-items: center;
-  margin-bottom: 8px;
+}
+.header-actions {
+  flex-shrink: 0;
 }
 
 .avatar {
@@ -116,15 +135,23 @@ export default defineComponent({
   gap: 8px;
   align-items: center;
 }
-.username {
-  font-weight: 700;
+.username { font-weight: 700; }
+.created { color: #666; font-size: 0.9em; }
+
+.reply-btn {
+  padding: 6px 10px;
+  border: 1px solid rgba(26,115,232,0.4);
+  background: #1a73e8;
+  color: #fff;
+  border-radius: 6px;
+  font-size: 13px;
+  cursor: pointer;
 }
-.created {
-  color: #666;
-  font-size: 0.9em;
+.reply-btn:hover {
+  filter: brightness(0.95);
 }
 
-/* body */
+/* Body */
 .comment-body {
   margin-top: 6px;
   color: #222;
@@ -135,30 +162,13 @@ export default defineComponent({
   text-decoration: underline;
 }
 
-/* replies */
-.replies {
-  margin-top: 12px;
-}
+/* Replies */
+.replies { margin-top: 12px; }
 
-/* Softer pastel colors for levels */
-.comment-node[level="0"] {
-  --level-color: #a8c6f7; /* light blue */
-  background: #ffffff;
-}
-.comment-node[level="1"] {
-  --level-color: #a8e6b0; /* light green */
-  background: #f9fdf9;
-}
-.comment-node[level="2"] {
-  --level-color: #fde59c; /* light yellow */
-  background: #fffef8;
-}
-.comment-node[level="3"] {
-  --level-color: #f6a6a0; /* light red */
-  background: #fff9f9;
-}
-.comment-node[level="4"] {
-  --level-color: #d7a8e6; /* light purple */
-  background: #fcf8ff;
-}
+/* Softer pastel colors per level */
+.comment-node[level="0"] { --level-color: #a8c6f7; background: #ffffff; }
+.comment-node[level="1"] { --level-color: #a8e6b0; background: #f9fdf9; }
+.comment-node[level="2"] { --level-color: #fde59c; background: #fffef8; }
+.comment-node[level="3"] { --level-color: #f6a6a0; background: #fff9f9; }
+.comment-node[level="4"] { --level-color: #d7a8e6; background: #fcf8ff; }
 </style>
