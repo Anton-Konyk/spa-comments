@@ -8,7 +8,7 @@ class SpaUserSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = SpaUser
-        fields = ["id", "username", "avatar"]
+        fields = ["id", "username", "email", "avatar"]
 
     @extend_schema_field(str)
     def get_avatar(self, obj) -> str | None:
