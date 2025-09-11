@@ -110,7 +110,7 @@ class CommentCreateSerializer(serializers.ModelSerializer):
 class CommentDetailSerializer(serializers.ModelSerializer):
     user = SpaUserSerializer(read_only=True)
     is_reply = serializers.SerializerMethodField()
-    replies = serializers.SerializerMethodField(method_name="get_replies")
+    replies = serializers.SerializerMethodField()
 
     class Meta:
         model = Comment
@@ -130,7 +130,7 @@ class CommentDetailSerializer(serializers.ModelSerializer):
     def get_is_reply(self, obj) -> bool:
         return obj.is_reply
 
-    @extend_schema_field(CommentListSerializer(many=True))
+    @extend_schema_field(serializers.ListField(child=serializers.DictField()))
     def get_replies(self, obj):
         qs = obj.get_replies()
-        return CommentListSerializer(qs, many=True, context=self.context).data
+        return CommentDetailSerializer(qs, many=True, context=self.context).data
