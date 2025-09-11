@@ -1,7 +1,14 @@
+import requests
+from django.contrib.auth.password_validation import validate_password
+from django.core.validators import validate_email
 from drf_spectacular.utils import extend_schema_field
 from rest_framework import serializers
+from django.contrib.auth import authenticate
 from django.core.exceptions import ValidationError
+from rest_framework.validators import UniqueValidator
 
+from spa_comments import settings
+from spa_comments.settings import RECAPTCHA_VERIFY_URL
 from .models import SpaUser
 
 
@@ -45,3 +52,59 @@ class LoginSerializer(serializers.Serializer):
 
         data["user"] = user
         return data
+
+
+class RegisterUserSerializer(serializers.ModelSerializer):
+    password = serializers.CharField(write_only=True, validators=[validate_password])
+    recaptcha_token = serializers.CharField(write_only=True)
+    email = serializers.EmailField(
+        required=True,
+        validators=[UniqueValidator(queryset=SpaUser.objects.all())]
+    )
+
+    class Meta:
+        model = SpaUser
+        fields = [
+            "id",
+            "username",
+            "email",
+            "password",
+            "avatar",
+            "recaptcha_token"
+        ]
+        extra_kwargs = {
+            "password": {"write_only": True},
+            "username": {"required": True},
+            "email": {"required": True},
+        }
+
+    def validate_recaptcha_token(self, value):
+        secret = settings.RECAPTCHA_SECRET_KEY
+        try:
+            response = requests.post(
+                RECAPTCHA_VERIFY_URL,
+                data={"secret": secret, "response": value},
+                timeout=5,
+            )
+            result = response.json()
+        except Exception:
+            raise serializers.ValidationError(
+                "Unable to verify reCAPTCHA. Try again later."
+            )
+
+        if not result.get("success"):
+            raise serializers.ValidationError("reCAPTCHA verification failed")
+        return value
+
+    def create(self, validated_data):
+        validated_data.pop("recaptcha_token", None)
+        user = SpaUser.objects.create_user(
+            username=validated_data["username"],
+            email=validated_data["email"].lower(),
+            password=validated_data["password"],
+            avatar=validated_data.get("avatar"),
+        )
+        return user
+
+    def to_representation(self, instance):
+        return SpaUserSerializer(instance, context=self.context).data
