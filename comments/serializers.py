@@ -3,6 +3,7 @@ import bleach
 from rest_framework import serializers
 
 from spa_comments import settings
+from spa_comments.settings import RECAPTCHA_VERIFY_URL
 from users.serializers import SpaUserSerializer
 from .models import Comment
 from drf_spectacular.utils import extend_schema_field
@@ -57,7 +58,7 @@ class CommentCreateSerializer(serializers.ModelSerializer):
         secret = settings.RECAPTCHA_SECRET_KEY
 
         response = requests.post(
-            "https://www.google.com/recaptcha/api/siteverify",
+            RECAPTCHA_VERIFY_URL,
             data={"secret": secret, "response": token},
         )
         result = response.json()
