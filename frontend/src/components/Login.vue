@@ -46,7 +46,7 @@
 </template>
 
 <script setup>
-import { ref } from "vue";
+import { ref, onMounted } from "vue";
 import { useRouter } from "vue-router";
 import axios from "axios";
 import Cookies from "js-cookie";
@@ -64,6 +64,19 @@ const form = ref({
 const loading = ref(false);
 const error = ref("");
 const success = ref(false);
+let recaptchaWidgetId = null;
+
+onMounted(() => {
+  if (window.grecaptcha) {
+    // render reCAPTCHA explicitly
+    recaptchaWidgetId = window.grecaptcha.render(
+      document.querySelector(".g-recaptcha"),
+      {
+        sitekey: recaptchaSiteKey,
+      }
+    );
+  }
+});
 
 const handleLogin = async () => {
   error.value = "";
@@ -72,17 +85,10 @@ const handleLogin = async () => {
 
   try {
     const csrftoken = Cookies.get("csrftoken");
-    if (!csrftoken) {
-      throw new Error("CSRF token missing. Refresh the page.");
-    }
+    if (!csrftoken) throw new Error("CSRF token missing. Refresh the page.");
 
-    const recaptchaToken = document.querySelector(
-      'textarea[name="g-recaptcha-response"]'
-    )?.value;
-
-    if (!recaptchaToken) {
-      throw new Error("Please complete the reCAPTCHA.");
-    }
+    const recaptchaToken = window.grecaptcha.getResponse(recaptchaWidgetId);
+    if (!recaptchaToken) throw new Error("Please complete the reCAPTCHA.");
 
     const formData = {
       username: form.value.username,
@@ -91,21 +97,15 @@ const handleLogin = async () => {
     };
 
     await axios.post(`${VITE_BACKEND_URL}/api/v1/users/login/`, formData, {
-      headers: {
-        "X-CSRFToken": csrftoken,
-      },
+      headers: { "X-CSRFToken": csrftoken },
       withCredentials: true,
     });
 
     success.value = true;
     form.value.username = "";
     form.value.password = "";
+    window.grecaptcha.reset(recaptchaWidgetId);
 
-    if (window.grecaptcha) {
-      window.grecaptcha.reset();
-    }
-
-    // Navigate to home after login
     setTimeout(() => {
       router.push("/");
     }, 800);
@@ -113,6 +113,7 @@ const handleLogin = async () => {
     error.value =
       err.response?.data?.detail ||
       err.response?.data?.non_field_errors?.[0] ||
+      err.message ||
       "Login failed";
   } finally {
     loading.value = false;
