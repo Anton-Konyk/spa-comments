@@ -5,9 +5,10 @@
       <div class="form-group">
         <label for="username">Username or Email</label>
         <input
-          v-model="form.username"
           id="username"
+          v-model="form.username"
           type="text"
+          name="username"
           required
         />
       </div>
@@ -15,168 +16,170 @@
       <div class="form-group">
         <label for="password">Password</label>
         <input
-          v-model="form.password"
           id="password"
+          v-model="form.password"
           type="password"
+          name="password"
           required
         />
       </div>
 
-      <!-- Visible reCAPTCHA v2 -->
-      <div class="recaptcha-wrapper">
-        <div
-          class="g-recaptcha"
-          :data-sitekey="recaptchaSiteKey"
-        ></div>
-      </div>
+      <!-- Google reCAPTCHA v2 -->
+      <div
+        class="g-recaptcha"
+        :data-sitekey="recaptchaSiteKey"
+      ></div>
 
       <div class="button-row">
-        <button type="submit" :disabled="submitting">
-          {{ submitting ? "Logging in..." : "Login" }}
+        <button type="submit" :disabled="loading">
+          {{ loading ? "Signing in..." : "Sign in" }}
         </button>
-        <button type="button" class="cancel" @click="goBack">
+        <button type="button" @click="cancelLogin" class="cancel-btn">
           Cancel
         </button>
       </div>
-    </form>
 
-    <p v-if="message" class="success">{{ message }}</p>
-    <p v-if="errorMessage" class="error">{{ errorMessage }}</p>
+      <p v-if="error" class="error">{{ error }}</p>
+      <p v-if="success" class="success">Login successful!</p>
+    </form>
   </div>
 </template>
 
 <script setup>
-import { ref, onMounted } from "vue";
+import { ref } from "vue";
 import { useRouter } from "vue-router";
 import axios from "axios";
 import Cookies from "js-cookie";
 
 const router = useRouter();
+
+const VITE_BACKEND_URL = import.meta.env.VITE_BACKEND_URL;
+const recaptchaSiteKey = import.meta.env.VITE_RECAPTCHA_SITE_KEY;
+
 const form = ref({
   username: "",
   password: "",
 });
-const submitting = ref(false);
-const message = ref("");
-const errorMessage = ref("");
 
-const recaptchaSiteKey = import.meta.env.VITE_RECAPTCHA_SITE_KEY;
-
-// ensure recaptcha renders after mount
-onMounted(() => {
-  if (window.grecaptcha) {
-    window.grecaptcha.render(
-      document.querySelector(".g-recaptcha"),
-      { sitekey: recaptchaSiteKey }
-    );
-  }
-});
+const loading = ref(false);
+const error = ref("");
+const success = ref(false);
 
 const handleLogin = async () => {
-  errorMessage.value = "";
-  message.value = "";
-  submitting.value = true;
+  error.value = "";
+  success.value = false;
+  loading.value = true;
 
   try {
-    // get token from hidden textarea created by recaptcha
-    const recaptchaResponse = document.querySelector(
+    const csrftoken = Cookies.get("csrftoken");
+    if (!csrftoken) {
+      throw new Error("CSRF token missing. Refresh the page.");
+    }
+
+    const recaptchaToken = document.querySelector(
       'textarea[name="g-recaptcha-response"]'
     )?.value;
 
-    if (!recaptchaResponse) {
-      errorMessage.value = "Please complete the reCAPTCHA.";
-      submitting.value = false;
-      return;
+    if (!recaptchaToken) {
+      throw new Error("Please complete the reCAPTCHA.");
     }
 
-    const csrfToken = Cookies.get("csrftoken");
-    const response = await axios.post(
-      `${import.meta.env.VITE_BACKEND_URL}/api/v1/users/login/`,
-      {
-        username: form.value.username,
-        password: form.value.password,
-        recaptcha_token: recaptchaResponse,
-      },
-      {
-        withCredentials: true,
-        headers: { "X-CSRFToken": csrfToken },
-      }
-    );
+    const formData = {
+      username: form.value.username,
+      password: form.value.password,
+      recaptcha_token: recaptchaToken,
+    };
 
-    message.value = "Login successful!";
-    // redirect to home after short delay
-    setTimeout(() => router.push("/"), 800);
-  } catch (error) {
-    errorMessage.value =
-      error.response?.data?.detail || "Login failed";
-    console.error("Login error:", error.response?.data || error);
+    await axios.post(`${VITE_BACKEND_URL}/api/v1/users/login/`, formData, {
+      headers: {
+        "X-CSRFToken": csrftoken,
+      },
+      withCredentials: true,
+    });
+
+    success.value = true;
+    form.value.username = "";
+    form.value.password = "";
+
+    if (window.grecaptcha) {
+      window.grecaptcha.reset();
+    }
+
+    // Navigate to home after login
+    setTimeout(() => {
+      router.push("/");
+    }, 800);
+  } catch (err) {
+    error.value =
+      err.response?.data?.detail ||
+      err.response?.data?.non_field_errors?.[0] ||
+      "Login failed";
   } finally {
-    submitting.value = false;
+    loading.value = false;
   }
 };
 
-const goBack = () => {
+function cancelLogin() {
   router.push("/");
-};
+}
 </script>
 
 <style scoped>
 .login-container {
   max-width: 400px;
   margin: 2rem auto;
-  padding: 1.5rem;
+  padding: 1rem;
+  border: 1px solid #ddd;
+  border-radius: 8px;
   background: #fff;
-  border-radius: 12px;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
 }
-h2 {
-  text-align: center;
-  margin-bottom: 1.2rem;
-}
+
 .form-group {
   margin-bottom: 1rem;
 }
+
 label {
   display: block;
-  margin-bottom: 0.4rem;
-  font-weight: 500;
+  margin-bottom: 0.3rem;
+  font-weight: bold;
 }
+
 input {
   width: 100%;
-  padding: 0.5rem;
+  padding: 0.4rem;
   border: 1px solid #ccc;
-  border-radius: 6px;
+  border-radius: 4px;
 }
-.recaptcha-wrapper {
-  display: flex;
-  justify-content: center;
-  margin: 1rem 0;
-}
+
 .button-row {
   display: flex;
-  justify-content: space-between;
-  gap: 1rem;
+  gap: 0.5rem;
+  margin-top: 1rem;
 }
+
 button {
-  flex: 1;
-  padding: 0.6rem;
+  padding: 0.6rem 1.2rem;
   border: none;
-  border-radius: 6px;
+  border-radius: 4px;
+  color: #fff;
   cursor: pointer;
 }
+
+button:disabled {
+  background: #90caf9;
+  cursor: not-allowed;
+}
+
 button[type="submit"] {
-  background: #007bff;
-  color: white;
+  background: #1976d2;
 }
-button.cancel {
-  background: #ccc;
+
+.cancel-btn {
+  background: #6c757d;
 }
-.success {
-  color: green;
-  margin-top: 1rem;
-}
+
 .error {
   color: red;
-  margin-top: 1rem;
+  margin-top: 0.5rem;
 }
 </style>
