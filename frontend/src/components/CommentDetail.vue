@@ -15,6 +15,7 @@
         :current-user="currentUser"
         :parent-id="replyToId"
         :reply-to-text="replyToText"
+        :reply-to-author="replyToAuthor"
         @comment-posted="refreshComments"
         @cancel="cancelReply"
         ref="replyFormEl"
@@ -38,6 +39,7 @@ const comment = ref(null);
 const currentUser = ref(null);
 const replyToId = ref(null);
 const replyToText = ref("");
+const replyToAuthor = ref("");
 const loading = ref(true);
 const error = ref("");
 const replyFormEl = ref(null);
@@ -74,9 +76,10 @@ const fetchCurrentUser = async () => {
 };
 
 const handleReply = async (payload) => {
-  // payload { id, text } from CommentNode.vue
+  // payload { id, text, authorName} from CommentNode.vue
   replyToId.value = payload.id;
   replyToText.value = payload.text;
+  replyToAuthor.value = payload.authorName
 
   await nextTick();
   replyFormEl.value?.$el.scrollIntoView({ behavior: "smooth", block: "center" });
@@ -85,12 +88,14 @@ const handleReply = async (payload) => {
 const cancelReply = () => {
   replyToId.value = null;
   replyToText.value = "";
+  replyToAuthor.value = "";
 };
 
 const refreshComments = async () => {
   await fetchComment();
   replyToId.value = null;
   replyToText.value = "";
+  replyToAuthor.value = "";
 };
 
 const goBack = () => {
