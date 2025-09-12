@@ -61,11 +61,12 @@ export default defineComponent({
       if (!iso) return ''
       try { return new Date(iso).toLocaleString() } catch { return iso }
     },
-    // Emit only id + text (safe for backend, useful for frontend preview)
+    // Emit only id + text + authorName(safe for backend, useful for frontend preview)
     emitReply() {
       this.$emit('reply', {
         id: this.comment.id,
-        text: this.comment.text
+        text: this.comment.text,
+        authorName: this.comment.user?.username
       })
     }
   },
