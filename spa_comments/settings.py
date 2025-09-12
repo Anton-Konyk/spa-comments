@@ -33,6 +33,10 @@ ALLOWED_HOSTS = os.getenv("ALLOWED_HOSTS", "").split(",")
 
 CORS_ALLOWED_ORIGINS = os.getenv("CORS_ALLOWED_ORIGINS", "").split(",")
 
+CORS_ALLOW_CREDENTIALS = True
+
+CSRF_TRUSTED_ORIGINS = [origin.strip() for origin in CORS_ALLOWED_ORIGINS if origin.strip()]
+
 PAGE_SIZE = int(os.getenv("PAGE_SIZE", 2))
 
 FRONTEND_BACKEND_URL = os.getenv("FRONTEND_BACKEND_URL")
