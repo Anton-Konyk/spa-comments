@@ -1,5 +1,23 @@
 <template>
   <div class="comment-list">
+    <!-- Auth bar (added) -->
+    <div class="auth-bar">
+      <template v-if="currentUser">
+        <img
+          v-if="currentUser.avatar"
+          :src="currentUser.avatar"
+          alt="avatar"
+          class="auth-avatar"
+        />
+        <span class="auth-username">Hello, {{ currentUser.username }}</span>
+        <button @click="logout" class="auth-btn">Logout</button>
+      </template>
+      <template v-else>
+        <button @click="openLogin" class="auth-btn">Sign in</button>
+        <button @click="openRegister" class="auth-btn">Register</button>
+      </template>
+    </div>
+
     <h2>Comments</h2>
 
     <!-- Controls -->
@@ -126,6 +144,7 @@
 import { ref, computed, onMounted, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import axios from 'axios'
+import Cookies from 'js-cookie'
 import { usePagination } from '../composables/usePagination.js'
 
 export default {
@@ -137,6 +156,9 @@ export default {
     const loading = ref(true)
     const config = ref(null)
 
+    // auth state (added)
+    const currentUser = ref(null)
+
     const currentPage = ref(1)
     const totalPages = ref(1)
     const inputPage = ref(1)
@@ -147,6 +169,39 @@ export default {
 
     let pagination = null
 
+    // ---- AUTH (added) ----
+    const fetchCurrentUser = async () => {
+      try {
+        const res = await axios.get(
+          `${import.meta.env.VITE_BACKEND_URL}/api/v1/users/me/`,
+          { withCredentials: true }
+        )
+        currentUser.value = res.data
+      } catch {
+        currentUser.value = null
+      }
+    }
+
+    const logout = async () => {
+      try {
+        await axios.post(
+          `${import.meta.env.VITE_BACKEND_URL}/api/v1/users/logout/`,
+          {},
+          {
+            withCredentials: true,
+            headers: { 'X-CSRFToken': Cookies.get('csrftoken') || '' },
+          }
+        )
+        currentUser.value = null
+      } catch (err) {
+        console.error('Logout error', err)
+      }
+    }
+
+    const openLogin = () => { router.push({ name: 'Login' }) }
+    const openRegister = () => { router.push({ name: 'Register' }) }
+
+    // ---- COMMENTS (your code) ----
     const fetchConfig = async () => {
       try {
         const response = await axios.get(
@@ -297,6 +352,7 @@ export default {
       await fetchConfig()
       initPagination()
       await fetchPage(1)
+      await fetchCurrentUser() // auth (added)
     })
 
     return {
@@ -317,7 +373,13 @@ export default {
       goToInputPage,
       truncateText,
       formatDate,
-      goToDetail
+      goToDetail,
+
+      // auth
+      currentUser,
+      logout,
+      openLogin,
+      openRegister,
     }
   },
 }
@@ -476,4 +538,30 @@ export default {
   padding: 20px;
   font-size: 16px;
 }
+
+/* auth bar (added) */
+.auth-bar {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+.auth-avatar {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  object-fit: cover;
+}
+.auth-btn {
+  padding: 6px 12px;
+  background: #1a73e8;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 14px;
+}
+.auth-btn:hover { background: #1669c1; }
+.auth-username { font-weight: 600; }
 </style>
