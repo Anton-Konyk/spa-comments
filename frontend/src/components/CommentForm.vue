@@ -1,135 +1,189 @@
 <template>
-  <form class="comment-form" @submit.prevent="handleSubmit">
-    <!-- Comment text -->
-    <textarea
-      v-model="form.text"
-      name="text"
-      id="comment-text"
-      placeholder="Write your comment..."
-      required
-    ></textarea>
-
-    <!-- reCAPTCHA container -->
-    <div class="recaptcha-wrapper">
-      <div id="recaptcha-container"></div>
+  <div class="comment-form-card">
+    <!-- For guests -->
+    <div v-if="!currentUser" class="not-logged-in">
+      <p class="info-text">You must be signed in to leave a comment.</p>
+      <div class="auth-buttons">
+        <button @click="goLogin">Sign in</button>
+        <button @click="goRegister">Register</button>
+        <button @click="cancelReply" class="cancel-btn">Cancel</button>
+      </div>
     </div>
 
-    <!-- Submit -->
-    <button type="submit" :disabled="submitting">
-      {{ submitting ? "Submitting..." : "Submit" }}
-    </button>
-  </form>
+    <!-- For logged-in users -->
+    <form v-else @submit.prevent="handleSubmit" class="comment-form">
+      <textarea
+        v-model="text"
+        placeholder="Write your comment..."
+        required
+      ></textarea>
+
+      <input type="file" @change="handleFileChange" />
+
+      <div ref="captcha" class="g-recaptcha"></div>
+
+      <div class="form-actions">
+        <button type="submit" :disabled="submitting">Submit</button>
+        <button type="button" class="cancel-btn" @click="cancelReply">Cancel</button>
+      </div>
+
+      <p v-if="errorMessage" class="error">{{ errorMessage }}</p>
+      <p v-if="successMessage" class="success">{{ successMessage }}</p>
+    </form>
+  </div>
 </template>
 
-<script>
+<script setup>
+import { ref, onMounted } from "vue";
+import { useRouter } from "vue-router";
 import axios from "axios";
+import Cookies from "js-cookie";
 
-export default {
-  name: "CommentForm",
-  data() {
-    return {
-      siteKey: import.meta.env.VITE_RECAPTCHA_SITE_KEY,
-      submitting: false,
-      form: {
-        text: "",
-      },
-      widgetId: null,
-    };
-  },
-  mounted() {
-    if (window.grecaptcha) {
-      this.widgetId = window.grecaptcha.render("recaptcha-container", {
-        sitekey: this.siteKey,
-      });
-    } else {
-      console.error("reCAPTCHA script not loaded!");
-    }
-  },
-  methods: {
-    async handleSubmit() {
-      this.submitting = true;
+const props = defineProps({
+  currentUser: Object,
+  parentId: Number,
+});
 
-      const tokenField = document.querySelector(
-        "textarea[name='g-recaptcha-response']"
-      );
-      const token = tokenField ? tokenField.value : "";
+const emit = defineEmits(["comment-posted", "cancel"]);
 
-      if (!token) {
-        alert("Please complete the reCAPTCHA");
-        this.submitting = false;
-        return;
-      }
+const router = useRouter();
 
-      try {
-        const formData = new FormData();
-        formData.append("text", this.form.text);
-        formData.append("recaptcha_token", token);
+const text = ref("");
+const file = ref(null);
+const errorMessage = ref("");
+const successMessage = ref("");
+const submitting = ref(false);
+const captcha = ref(null);
+let captchaWidgetId = null;
 
-        await axios.post(
-          `${import.meta.env.VITE_BACKEND_URL}/api/v1/comments/create/`,
-          formData,
-          { withCredentials: true }
-        );
+onMounted(() => {
+  if (window.grecaptcha && captcha.value) {
+    captchaWidgetId = window.grecaptcha.render(captcha.value, {
+      sitekey: import.meta.env.VITE_RECAPTCHA_SITE_KEY,
+    });
+  }
+});
 
-        alert("Comment submitted successfully!");
-        this.form.text = "";
-
-        if (this.widgetId !== null) {
-          window.grecaptcha.reset(this.widgetId);
-        }
-      } catch (err) {
-        console.error("Error creating comment:", err);
-        alert("Failed to create comment");
-      } finally {
-        this.submitting = false;
-      }
-    },
-  },
+const handleFileChange = (e) => {
+  file.value = e.target.files[0];
 };
+
+const handleSubmit = async () => {
+  errorMessage.value = "";
+  successMessage.value = "";
+
+  const recaptchaToken = window.grecaptcha.getResponse(captchaWidgetId);
+  if (!recaptchaToken) {
+    errorMessage.value = "Please complete the reCAPTCHA.";
+    return;
+  }
+
+  const formData = new FormData();
+  formData.append("text", text.value);
+  if (props.parentId) formData.append("parent", props.parentId);
+  if (file.value) formData.append("file", file.value);
+  formData.append("recaptcha_token", recaptchaToken);
+
+  submitting.value = true;
+  try {
+    await axios.post(
+      `${import.meta.env.VITE_BACKEND_URL}/api/v1/comments/create/`,
+      formData,
+      {
+        headers: {
+          "X-CSRFToken": Cookies.get("csrftoken"),
+        },
+        withCredentials: true,
+      }
+    );
+
+    successMessage.value = "Comment submitted!";
+    text.value = "";
+    file.value = null;
+    window.grecaptcha.reset(captchaWidgetId);
+
+    emit("comment-posted");
+  } catch (error) {
+    errorMessage.value =
+      error.response?.data
+        ? JSON.stringify(error.response.data)
+        : "Failed to create comment.";
+  } finally {
+    submitting.value = false;
+  }
+};
+
+const goLogin = () => router.push({ name: "Login" });
+const goRegister = () => router.push({ name: "Register" });
+const cancelReply = () => emit("cancel");
 </script>
 
 <style scoped>
-button[type="submit"] {
-  background-color: #007bff;
-  color: white;
-  border: none;
-  padding: 0.5rem 1rem;
-  border-radius: 4px;
-  cursor: pointer;
-  transition: background-color 0.3s;
-}
-
-button[type="submit"]:hover:not(:disabled) {
-  background-color: #0056b3;
-}
-
-button[type="submit"]:disabled {
-  background-color: #7da6d9;
-  cursor: not-allowed;
-}
-
-.comment-form {
-  display: flex;
-  flex-direction: column;
-  gap: 1rem;
-  max-width: 500px;
-  margin: 2rem auto;
-  padding: 1.5rem;
-  border: 1px solid #ddd;
-  border-radius: 8px;
+.comment-form-card {
   background: #fff;
+  border-radius: 8px;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
+  padding: 1rem;
+  margin-top: 1rem;
 }
 
 textarea {
   width: 100%;
-  min-height: 100px;
-  resize: vertical;
+  min-height: 80px;
+  margin-bottom: 0.5rem;
   padding: 0.5rem;
 }
 
-.recaptcha-wrapper {
+.form-actions {
   display: flex;
+  gap: 10px;
+  margin-top: 1rem;
+}
+
+.form-actions button,
+.auth-buttons button {
+  flex: 1;
+  padding: 0.5rem;
+  border: none;
+  cursor: pointer;
+  border-radius: 4px;
+}
+
+button[type="submit"] {
+  background-color: #007bff;
+  color: white;
+}
+button[type="submit"]:disabled {
+  background-color: #6c757d;
+}
+
+.cancel-btn {
+  background-color: #6c757d;
+  color: white;
+}
+.cancel-btn:hover {
+  background-color: #5a6268;
+}
+
+.error {
+  color: red;
+  margin-top: 0.5rem;
+}
+.success {
+  color: green;
+  margin-top: 0.5rem;
+}
+
+.not-logged-in {
+  text-align: center;
+}
+.info-text {
+  margin-bottom: 1rem;
+  font-weight: 500;
+}
+.auth-buttons {
+  display: flex;
+  gap: 10px;
   justify-content: center;
-  min-height: 80px;
 }
 </style>
