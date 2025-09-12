@@ -1,49 +1,50 @@
-from django.contrib.auth import authenticate, login, logout
-from django.contrib.auth import get_user_model
-from rest_framework import generics, status
-from rest_framework.permissions import AllowAny
+from django.contrib.auth import login, logout
+from rest_framework import status
+from rest_framework.generics import CreateAPIView, GenericAPIView, RetrieveAPIView
+from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
-from rest_framework.views import APIView
 
-from .serializers import SpaUserSerializer, RegisterUserSerializer
-
-SpaUser = get_user_model()
+from .serializers import SpaUserSerializer, RegisterUserSerializer, LoginSerializer
 
 
-class RegisterUserView(generics.CreateAPIView):
+class RegisterUserView(CreateAPIView):
+    """Register a new user"""
     serializer_class = RegisterUserSerializer
     permission_classes = [AllowAny]
 
+    def create(self, request, *args, **kwargs):
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        user = serializer.save()
+        return Response(SpaUserSerializer(user).data, status=status.HTTP_201_CREATED)
 
-class LoginUserView(APIView):
-    """Login with username and password (session auth)"""
 
-    permission_classes = ()
+class LoginUserView(GenericAPIView):
+    """Login user view"""
+    serializer_class = LoginSerializer
+    permission_classes = [AllowAny]
 
-    def post(self, request):
-        username = request.data.get("username")
-        password = request.data.get("password")
-
-        user = authenticate(request, username=username, password=password)
-        if not user:
-            return Response({"detail": "Invalid credentials"}, status=status.HTTP_400_BAD_REQUEST)
-
+    def post(self, request, *args, **kwargs):
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        user = serializer.validated_data["user"]
         login(request, user)
-        return Response(SpaUserSerializer(user, context={"request": request}).data)
+        return Response(SpaUserSerializer(user).data, status=status.HTTP_200_OK)
 
 
-class LogoutUserView(APIView):
-    """Logout current user"""
+class LogoutUserView(GenericAPIView):
+    """Logout"""
+    permission_classes = [IsAuthenticated]
 
-    def post(self, request):
+    def post(self, request, *args, **kwargs):
         logout(request)
-        return Response({"detail": "Logged out"}, status=status.HTTP_200_OK)
+        return Response({"detail": "Successfully logged out."}, status=status.HTTP_200_OK)
 
 
-class CurrentUserView(APIView):
-    """Get current logged-in user"""
+class CurrentUserView(RetrieveAPIView):
+    """Current user (/me)"""
+    serializer_class = SpaUserSerializer
+    permission_classes = [IsAuthenticated]
 
-    def get(self, request):
-        if request.user.is_authenticated:
-            return Response(SpaUserSerializer(request.user, context={"request": request}).data)
-        return Response({"detail": "Not authenticated"}, status=status.HTTP_401_UNAUTHORIZED)
+    def get_object(self):
+        return self.request.user
