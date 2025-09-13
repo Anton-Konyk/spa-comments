@@ -63,6 +63,7 @@
             <th class="col-email">Email</th>
             <th class="col-date">Date</th>
             <th class="col-text">Text</th>
+            <th class="col-file">File</th>
             <th class="col-replies">Replies</th>
           </tr>
         </thead>
@@ -102,6 +103,39 @@
               {{ truncateText(comment.text) }}
             </td>
 
+            <td class="cell file-cell">
+              <template v-if="comment.file">
+                <!-- If the file is an image -->
+                <img
+                  v-if="isImage(comment.file)"
+                  :src="comment.file"
+                  alt="Attachment"
+                  class="file-thumb"
+                  @click.stop="openLightbox(comment.file)"
+                />
+                <!-- If the file is a text file -->
+                <span
+                  v-else-if="comment.file.toLowerCase().endsWith('.txt')"
+                  class="file-txt"
+                  @click.stop="openTxtPreview(comment.file)"
+                >
+                  TXT File
+                </span>
+                <!-- Any other file types -->
+                <a
+                  v-else
+                  :href="comment.file"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  Download
+                </a>
+              </template>
+              <template v-else>
+                –
+              </template>
+            </td>
+
             <td class="cell replies-cell">
               <span v-if="(comment.replies_count ?? 0) > 0" class="replies-pill">
                 {{ comment.replies_count }}
@@ -138,6 +172,21 @@
 
     <div v-else class="loading">Loading...</div>
   </div>
+
+  <VueEasyLightbox
+      :visible="showLightbox"
+      :imgs="lightboxImgs"
+      :index="lightboxIndex"
+      @hide="showLightbox = false"
+    />
+
+  <!-- Modal for TXT preview -->
+    <div v-if="showTxtModal" class="txt-modal">
+      <div class="txt-content">
+        <button class="txt-close" @click="showTxtModal = false">×</button>
+        <pre>{{ txtContent }}</pre>
+      </div>
+    </div>
 </template>
 
 <script>
@@ -146,9 +195,12 @@ import { useRouter } from 'vue-router'
 import axios from 'axios'
 import Cookies from 'js-cookie'
 import { usePagination } from '../composables/usePagination.js'
+import VueEasyLightbox from "vue-easy-lightbox"
 
 export default {
   name: 'CommentList',
+  components: { VueEasyLightbox },
+
   setup() {
     const router = useRouter()
     const comments = ref([])
@@ -167,7 +219,25 @@ export default {
     const sortDirection = ref('asc')   // 'asc' | 'desc'
     const useClientPaging = ref(false)
 
+    const showLightbox = ref(false)
+    const lightboxIndex = ref(0)
+    const lightboxImgs = ref([])
+
+    const showTxtModal = ref(false)
+    const txtContent = ref('')
+
+    const isImage = (url) => {
+      return /\.(jpg|jpeg|png|gif|webp)$/i.test(url)
+
+    }
+
     let pagination = null
+
+    const openLightbox = (url) => {
+      lightboxImgs.value = [url]
+      lightboxIndex.value = 0
+      showLightbox.value = true
+    }
 
     // ---- AUTH (added) ----
     const fetchCurrentUser = async () => {
@@ -348,6 +418,17 @@ export default {
       router.push({ name: 'CommentDetail', params: { id } })
     }
 
+    const openTxtPreview = async (url) => {
+      try {
+        const res = await fetch(url)
+        txtContent.value = await res.text()
+        showTxtModal.value = true
+      } catch (e) {
+        txtContent.value = 'Error loading file.'
+        showTxtModal.value = true
+      }
+    }
+
     onMounted(async () => {
       await fetchConfig()
       initPagination()
@@ -375,11 +456,21 @@ export default {
       formatDate,
       goToDetail,
 
+      showLightbox,
+      lightboxImgs,
+      lightboxIndex,
+      openLightbox,
+
+      showTxtModal,
+      txtContent,
+      openTxtPreview,
+
       // auth
       currentUser,
       logout,
       openLogin,
       openRegister,
+      isImage,
     }
   },
 }
@@ -455,7 +546,9 @@ export default {
 .col-email  { width: 240px; }
 .col-date   { width: 180px; }
 .col-text   { width: auto; }
+.col-file { width: 100px; }
 .col-replies{ width: 90px; text-align: center; }
+
 
 .avatar-cell { text-align: center; }
 
@@ -483,6 +576,31 @@ export default {
 }
 
 .created { color: #666; }
+
+.file-cell {
+  text-align: center;
+}
+
+
+.file-thumb {
+  max-width: 80px;
+  max-height: 60px;
+  object-fit: cover;
+  border-radius: 4px;
+  box-shadow: 0 1px 2px rgba(0,0,0,0.2);
+}
+
+.file-txt {
+  display: inline-block;
+  font-size: 12px;
+  color: #1a73e8;
+  font-weight: 600;
+}
+
+.file-none {
+  color: #aaa;
+  font-size: 12px;
+}
 
 .text-cell {
   color: #222;
@@ -564,4 +682,50 @@ export default {
 }
 .auth-btn:hover { background: #1669c1; }
 .auth-username { font-weight: 600; }
+
+.thumb img {
+  width: 100px;
+  height: auto;
+  margin: 5px;
+  cursor: pointer;
+  border-radius: 6px;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.2);
+  transition: transform 0.2s;
+}
+.thumb img:hover {
+  transform: scale(1.05);
+}
+
+/* Modal for TXT preview */
+.txt-modal {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0,0,0,0.65);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 2000;
+}
+.txt-content {
+  background: #fff;
+  max-width: 80%;
+  max-height: 80%;
+  overflow: auto;
+  padding: 16px;
+  border-radius: 8px;
+  position: relative;
+  white-space: pre-wrap;
+}
+.txt-close {
+  position: absolute;
+  top: 8px;
+  right: 12px;
+  font-size: 20px;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+}
 </style>
