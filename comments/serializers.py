@@ -28,6 +28,7 @@ class CommentListSerializer(serializers.ModelSerializer):
             "text",
             "created_at",
             "is_reply",
+            "file",
             "replies_count",
         ]
 
