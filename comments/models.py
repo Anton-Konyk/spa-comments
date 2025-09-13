@@ -64,6 +64,19 @@ class Comment(models.Model):
     def get_replies(self):
         return self.replies.all().order_by("created_at")
 
+    def clean(self):
+        if self.file and self.file.name.lower().endswith(".txt"):
+            # Try to read the beginning of the file as UTF-8 text
+            try:
+                self.file.seek(0)
+                sample = self.file.read(1024)  # read first 1KB
+                if isinstance(sample, bytes):
+                    sample.decode("utf-8")  # raises UnicodeDecodeError if not text
+            except UnicodeDecodeError:
+                raise ValidationError("TXT files must be valid UTF-8 text.")
+            finally:
+                self.file.seek(0)  # reset pointer
+
     def save(self, *args, **kwargs):
         super().save(*args, **kwargs)
 
@@ -74,8 +87,16 @@ class Comment(models.Model):
             with Image.open(file_path) as img:
                 if img.width > IMAGE_RESIZE_WIDTH or img.height > IMAGE_RESIZE_HEIGHT:
                     img.thumbnail((IMAGE_RESIZE_WIDTH, IMAGE_RESIZE_HEIGHT))
-                    img = img.convert("RGB")
-                    img.save(file_path)
+
+                    # Map extension to Pillow format explicitly
+                    format_map = {
+                        ".jpg": "JPEG",
+                        ".jpeg": "JPEG",
+                        ".png": "PNG",
+                    }
+                    fmt = format_map.get(ext, "PNG")
+
+                    img.save(file_path, format=fmt)
 
     def __str__(self):
         username = self.user.username if self.user else "Anonymous"
