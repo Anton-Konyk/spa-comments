@@ -1,6 +1,7 @@
 import os
 import uuid
 
+import bleach
 from django.core.exceptions import ValidationError
 from django.core.validators import FileExtensionValidator
 from django.utils.text import slugify
@@ -13,6 +14,9 @@ from users.models import SpaUser
 IMAGE_RESIZE_WIDTH = 320
 IMAGE_RESIZE_HEIGHT = 240
 MAX_TXT_FILE_SIZE = 100 * 1024
+
+ALLOWED_TAGS = ["a", "code", "i", "strong"]
+ALLOWED_ATTRS = {"a": ["href", "title"]}
 
 
 def validate_file_size(value):
@@ -78,6 +82,19 @@ class Comment(models.Model):
                 self.file.seek(0)  # reset pointer
 
     def save(self, *args, **kwargs):
+        self.text = bleach.clean(
+            self.text,
+            tags=ALLOWED_TAGS,
+            attributes=ALLOWED_ATTRS,
+            strip=True,
+            strip_comments=True
+        )
+
+        self.text = bleach.linkify(
+            self.text,
+            callbacks=[bleach.callbacks.nofollow, bleach.callbacks.target_blank]
+        )
+
         super().save(*args, **kwargs)
 
         if self.file and self.file.name.lower().endswith(
