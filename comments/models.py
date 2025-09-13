@@ -120,7 +120,8 @@ class Comment(models.Model):
 
     def __str__(self):
         username = self.user.username if self.user else "Anonymous"
-        return f"{username}: {self.text[:25].replace('\n', ' ')}"
+        preview = self.text[:30].replace("\n", " ")
+        return f"{username}: {preview}"
 
     class Meta:
         verbose_name_plural = "comments"
