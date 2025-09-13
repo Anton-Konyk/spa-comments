@@ -31,8 +31,24 @@
       </div>
     </div>
 
-    <!-- Body -->
-    <div class="comment-body" v-html="comment?.text || ''"></div>
+    <!-- Body: text on the left, preview on the right (if file is an image) -->
+    <div class="comment-body">
+      <div class="body-row">
+        <div class="body-text" v-html="comment?.text || ''"></div>
+
+        <div
+          v-if="comment?.file && isImage(comment.file)"
+          class="body-attachment"
+        >
+          <img
+            :src="comment.file"
+            alt="attachment"
+            class="attachment-thumb"
+            @click.stop="openLightbox(comment.file)"
+          />
+        </div>
+      </div>
+    </div>
 
     <!-- Nested replies -->
     <div v-if="comment?.replies && comment.replies.length" class="replies">
@@ -44,30 +60,55 @@
         @reply="$emit('reply', $event)"
       />
     </div>
+
+    <!-- Lightbox для превью -->
+    <VueEasyLightbox
+      :visible="showLightbox"
+      :imgs="lightboxImgs"
+      :index="lightboxIndex"
+      @hide="showLightbox = false"
+    />
   </div>
 </template>
 
 <script>
 import { defineComponent } from 'vue'
+import VueEasyLightbox from 'vue-easy-lightbox'
 
 export default defineComponent({
   name: 'CommentNode',
+  components: { VueEasyLightbox },
   props: {
     comment: { type: Object, required: true },
     level: { type: Number, default: 0 }
+  },
+  data() {
+    return {
+      showLightbox: false,
+      lightboxImgs: [],
+      lightboxIndex: 0
+    }
   },
   methods: {
     formatDate(iso) {
       if (!iso) return ''
       try { return new Date(iso).toLocaleString() } catch { return iso }
     },
-    // Emit only id + text + authorName(safe for backend, useful for frontend preview)
+    // Emit only id + text + authorName (safe)
     emitReply() {
       this.$emit('reply', {
         id: this.comment.id,
         text: this.comment.text,
         authorName: this.comment.user?.username
       })
+    },
+    isImage(url) {
+      return /\.(jpe?g|png|gif|webp)$/i.test(url || '')
+    },
+    openLightbox(url) {
+      this.lightboxImgs = [url]
+      this.lightboxIndex = 0
+      this.showLightbox = true
     }
   },
   computed: {
@@ -161,6 +202,31 @@ export default defineComponent({
   color: #222;
   line-height: 1.45;
 }
+
+/* Text on the left + preview on the right in one line */
+.body-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+}
+.body-text {
+  flex: 1 1 auto;
+  min-width: 0; /* so that the text is correctly compressed on long lines */
+}
+.body-attachment {
+  flex: 0 0 120px;
+}
+.attachment-thumb {
+  width: 90px;
+  height: 70px;
+  object-fit: cover;
+  border-radius: 6px;
+  border: 1px solid rgba(0,0,0,0.12);
+  cursor: pointer;
+  box-shadow: 0 1px 2px rgba(0,0,0,0.08);
+}
+
+/* Links inside text */
 .comment-body a {
   color: #1a73e8;
   text-decoration: underline;
