@@ -97,10 +97,13 @@ class Comment(models.Model):
 
         super().save(*args, **kwargs)
 
-        if self.file and self.file.name.lower().endswith(
-            (".jpg", ".jpeg", ".png", ".gif")
-        ):
+        if self.file and self.file.name.lower().endswith((".jpg", ".jpeg", ".png", ".gif")):
             file_path = self.file.path
+            ext = os.path.splitext(self.file.name)[1].lower()
+
+            if ext == ".gif":
+                return
+
             with Image.open(file_path) as img:
                 if img.width > IMAGE_RESIZE_WIDTH or img.height > IMAGE_RESIZE_HEIGHT:
                     img.thumbnail((IMAGE_RESIZE_WIDTH, IMAGE_RESIZE_HEIGHT))
