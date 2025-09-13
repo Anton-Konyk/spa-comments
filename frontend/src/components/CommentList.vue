@@ -99,7 +99,7 @@
               <span class="created">{{ formatDate(comment.created_at) }}</span>
             </td>
 
-            <td class="cell text-cell">
+            <td class="cell text-cell" @click.stop="openTextPreview(comment)" title="Click to preview full text">
               {{ truncateText(comment.text) }}
             </td>
 
@@ -187,6 +187,14 @@
         <pre>{{ txtContent }}</pre>
       </div>
     </div>
+
+  <!-- Modal for comment text preview -->
+    <div v-if="showCommentModal" class="txt-modal">
+      <div class="txt-content">
+        <button class="txt-close" @click="showCommentModal = false">×</button>
+        <div v-html="commentPreviewHtml"></div>
+      </div>
+</div>
 </template>
 
 <script>
@@ -225,6 +233,9 @@ export default {
 
     const showTxtModal = ref(false)
     const txtContent = ref('')
+
+    const showCommentModal = ref(false)
+    const commentPreviewHtml = ref('')
 
     const isImage = (url) => {
       return /\.(jpg|jpeg|png|gif|webp)$/i.test(url)
@@ -429,6 +440,11 @@ export default {
       }
     }
 
+    const openTextPreview = (c) => {
+      commentPreviewHtml.value = c?.text || ''
+      showCommentModal.value = true
+}
+
     onMounted(async () => {
       await fetchConfig()
       initPagination()
@@ -464,6 +480,10 @@ export default {
       showTxtModal,
       txtContent,
       openTxtPreview,
+
+      openTextPreview,
+      showCommentModal,
+      commentPreviewHtml,
 
       // auth
       currentUser,
