@@ -73,13 +73,31 @@ export default {
       recaptchaSiteKey: import.meta.env.VITE_RECAPTCHA_SITE_KEY,
     };
   },
+
   methods: {
     handleFile(e) {
       this.form.avatar = e.target.files[0];
     },
+    validateForm() {
+      const USERNAME_REGEX = /^[A-Za-z0-9]+$/;
+      const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+      if (!USERNAME_REGEX.test(this.form.username)) {
+        this.errorMessage = "Username may contain only Latin letters and digits.";
+        return false;
+      }
+      if (!EMAIL_REGEX.test(this.form.email)) {
+        this.errorMessage = "Please enter a valid email address.";
+        return false;
+      }
+      return true;
+    },
     async handleRegister() {
       this.errorMessage = "";
       this.successMessage = "";
+
+      if (!this.validateForm()) return;
+
       this.submitting = true;
 
       const token = window.grecaptcha.getResponse(this.recaptchaWidgetId);
@@ -107,17 +125,15 @@ export default {
           }
         );
 
-        // Auto-login (Django already creates session cookie)
-        this.successMessage = `Welcome, ${response.data.username}! Registration successful.`;
-
-        // Redirect to home page after short delay
-        setTimeout(() => {
-          this.router.push("/");
-        }, 1000);
+        this.successMessage = `Welcome, ${response.data.username}! Registration successful. Please sign in.`;
 
         // Reset form + recaptcha
         this.form = { username: "", email: "", password: "", avatar: null };
         window.grecaptcha.reset(this.recaptchaWidgetId);
+        setTimeout(() => {
+          const next = this.$route.query.next || "/";
+          this.router.replace({ name: "Login", query: { next, registered: 1 } });
+        }, 2000)
       } catch (error) {
         if (error.response) {
           this.errorMessage = Object.values(error.response.data).flat().join(" ");
@@ -129,6 +145,7 @@ export default {
       } finally {
         this.submitting = false;
       }
+
     },
     goBack() {
       this.router.push("/");
