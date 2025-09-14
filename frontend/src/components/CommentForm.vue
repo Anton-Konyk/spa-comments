@@ -23,7 +23,16 @@
         &lt;a href="" title=""&gt;&lt;/a&gt;, &lt;code&gt;&lt;/code&gt;, &lt;i&gt;&lt;/i&gt;, &lt;strong&gt;&lt;/strong&gt;
       </p>
 
+      <!-- Tag toolbar -->
+      <div class="tag-toolbar">
+        <button type="button" class="tag-btn" title="Italic <i>" @click="applyTag('i')">[i]</button>
+        <button type="button" class="tag-btn" title="Bold <strong>" @click="applyTag('strong')">[strong]</button>
+        <button type="button" class="tag-btn" title="Code <code>" @click="applyTag('code')">[code]</button>
+        <button type="button" class="tag-btn" title="Link <a>" @click="insertLink">[a]</button>
+      </div>
+
       <textarea
+        ref="ta"
         v-model="text"
         placeholder="Write your comment..."
         required
@@ -58,10 +67,14 @@
  * HTML validation policy:
  * - Only these tags are allowed: <a href="" title=""></a>, <code></code>, <i></i>, <strong></strong>
  * - Attributes allowed only on <a>: href, title. href must be http(s) or mailto.
- * - Tags must be properly nested/closed (stack check) AND parse as well-formed XHTML.
+ * - Tags must be properly nested/closed AND also parse as well-formed XHTML.
  * - We sanitize with DOMPurify and also require sanitize(text) === original (strict whitelist).
+ *
+ * Toolbar:
+ * - Buttons wrap current selection (or insert placeholders) with allowed tags.
+ * - <a> asks for URL (http(s)/mailto) and optional title; inserts <a href="..." title="...">selected or placeholder</a>.
  */
-import { ref, onMounted, watch, computed } from "vue";
+import { ref, onMounted, watch, computed, nextTick } from "vue";
 import { useRouter } from "vue-router";
 import axios from "axios";
 import Cookies from "js-cookie";
@@ -78,6 +91,7 @@ const emit = defineEmits(["comment-posted", "cancel"]);
 const router = useRouter();
 
 const text = ref("");
+const ta = ref(null); // textarea ref for selection handling
 const file = ref(null);
 const submitting = ref(false);
 const errorMessage = ref("");
@@ -174,7 +188,6 @@ function assertXHTMLWellFormed(fragment) {
     `<?xml version="1.0" encoding="UTF-8"?>` +
     `<div xmlns="http://www.w3.org/1999/xhtml">${fragment}</div>`;
   const doc = new DOMParser().parseFromString(xhtmlDoc, "application/xhtml+xml");
-  // In XHTML mode, parser errors appear as a <parsererror> element
   const hasError = doc.getElementsByTagName("parsererror").length > 0;
   if (hasError) {
     throw new Error("Markup is not well-formed XHTML (check tag nesting/closing & entities).");
@@ -235,6 +248,64 @@ watch(
     if (val) setTimeout(renderCaptcha, 150);
   }
 );
+
+/* ===== Toolbar helpers ===== */
+
+/** Get current selection range inside textarea (start, end) */
+function getSel() {
+  const el = ta.value;
+  if (!el) return { start: text.value.length, end: text.value.length };
+  return { start: el.selectionStart ?? 0, end: el.selectionEnd ?? 0 };
+}
+
+/** Replace selection with before + selected + after; set caret after inserted content */
+async function wrapSelection(before, after, placeholder = "") {
+  const el = ta.value;
+  const value = text.value || "";
+  const { start, end } = getSel();
+  const selected = value.slice(start, end) || placeholder;
+
+  const updated =
+    value.slice(0, start) + before + selected + after + value.slice(end);
+
+  text.value = updated;
+
+  // restore caret after inserted block (right after closing tag)
+  const caretPos = start + before.length + selected.length + after.length;
+  await nextTick();
+  if (el) {
+    el.focus();
+    el.setSelectionRange(caretPos, caretPos);
+  }
+}
+
+/** Apply simple tag wrappers: i, strong, code */
+function applyTag(tag) {
+  // Only allowed tags are used here
+  const map = {
+    i: { before: "<i>", after: "</i>", ph: "italic text" },
+    strong: { before: "<strong>", after: "</strong>", ph: "bold text" },
+    code: { before: "<code>", after: "</code>", ph: "code" },
+  };
+  const cfg = map[tag];
+  if (!cfg) return;
+  wrapSelection(cfg.before, cfg.after, cfg.ph);
+}
+
+/** Insert <a href="..."> around selection (asks for URL and optional title) */
+function insertLink() {
+  const url = window.prompt('Enter URL (http(s) or mailto:)', 'https://');
+  if (!url) return;
+  if (!/^(https?:|mailto:)/i.test(url)) {
+    errorMessage.value = 'Link must start with http(s):// or mailto:';
+    return;
+  }
+  const title = window.prompt('Optional title attribute (press Cancel to skip)', '') || '';
+  const titleAttr = title ? ` title="${title.replace(/"/g, '&quot;')}"` : '';
+  const before = `<a href="${url.replace(/"/g, '&quot;')}"${titleAttr}>`;
+  const after = `</a>`;
+  wrapSelection(before, after, 'link text');
+}
 
 const handleSubmit = async () => {
   errorMessage.value = "";
@@ -327,6 +398,23 @@ const cancelReply = () => emit("cancel");
   font-size: 0.95rem;
 }
 .preview-text { color: #333; }
+
+.tag-toolbar {
+  display: flex;
+  gap: 6px;
+  margin: 6px 0 8px;
+  flex-wrap: wrap;
+}
+.tag-btn {
+  padding: 4px 8px;
+  font-size: 12px;
+  border: 1px solid rgba(0,0,0,0.15);
+  background: #fff;
+  border-radius: 6px;
+  cursor: pointer;
+}
+.tag-btn:hover { background: #f5f7fb; }
+
 textarea {
   width: 100%;
   min-height: 80px;
@@ -339,17 +427,21 @@ textarea {
   display: flex; gap: 10px; margin-top: 1rem;
 }
 .form-actions button,
+
 .auth-buttons button {
-  flex: 1; padding: 0.5rem; border: none; cursor: pointer; border-radius: 4px;
+  flex: 1;
+  padding: 0.5rem;
+  border: none;
+  cursor: pointer;
+  border-radius: 4px;
 }
+
 button[type="submit"] {
   background-color: #007bff;
   color: white;
 }
 
-button[type="submit"]:disabled {
-  background-color: #6c757d;
-}
+button[type="submit"]:disabled { background-color: #6c757d; }
 
 .cancel-btn {
   background-color: #6c757d;
