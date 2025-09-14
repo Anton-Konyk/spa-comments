@@ -102,13 +102,19 @@ const handleLogin = async () => {
     });
 
     success.value = true;
+    try {
+      const me = await axios.get(`${VITE_BACKEND_URL}/api/v1/users/me/`, { withCredentials: true });
+      localStorage.setItem("currentUser", JSON.stringify(me.data));
+    } catch (e) { console.error("fetch me failed", e) }
     form.value.username = "";
     form.value.password = "";
     window.grecaptcha.reset(recaptchaWidgetId);
 
+    const redirectTo = router.currentRoute.value.query.next || "/";
     setTimeout(() => {
-      router.push("/");
+      router.push(redirectTo);
     }, 800);
+
   } catch (err) {
     error.value =
       err.response?.data?.detail ||
