@@ -7,6 +7,7 @@ from django.core.validators import FileExtensionValidator
 from django.utils.text import slugify
 from django.db import models
 from PIL import Image
+from lxml import html, etree
 
 from users.models import SpaUser
 
@@ -33,6 +34,25 @@ def comments_file_path(instance, filename):
     filename = f"{slugify(instance.user.username)}-{uuid.uuid4()}{extension}"
 
     return os.path.join("uploads/comments/", filename)
+
+
+def to_valid_xhtml_fragment(cleaned: str) -> str:
+    """
+    Converts a cleaned HTML fragment into valid XHTML with closed tags.
+    """
+    wrapped = f"<div>{cleaned}</div>"
+
+    try:
+        node = html.fromstring(wrapped)
+    except etree.ParserError as e:
+        raise ValidationError(f"Невалидная HTML-разметка: {e}")
+
+    xhtml = html.tostring(node, method="xml", encoding="unicode")
+
+    if xhtml.startswith("<div>") and xhtml.endswith("</div>"):
+        xhtml = xhtml[len("<div>"):-len("</div>")]
+
+    return xhtml.strip()
 
 
 class Comment(models.Model):
@@ -94,6 +114,8 @@ class Comment(models.Model):
             self.text,
             callbacks=[bleach.callbacks.nofollow, bleach.callbacks.target_blank]
         )
+
+        self.text = to_valid_xhtml_fragment(self.text)
 
         super().save(*args, **kwargs)
 
