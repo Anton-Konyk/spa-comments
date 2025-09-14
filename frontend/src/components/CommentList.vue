@@ -299,8 +299,8 @@ export default {
       }
     }
 
-    const openLogin = () => { router.push({ name: 'Login' }) }
-    const openRegister = () => { router.push({ name: 'Register' }) }
+    const openLogin = () => { router.push({ name: "Login", query: { next: router.currentRoute.value.fullPath } }) }
+    const openRegister = () => { router.push({ name: "Register", query: { next: router.currentRoute.value.fullPath } }) }
 
     // ---- COMMENTS (your code) ----
     const fetchConfig = async () => {
@@ -475,10 +475,10 @@ export default {
     }
 
     onMounted(async () => {
-      await fetchConfig()
-      initPagination()
-      await fetchPage(1)
-      await fetchCurrentUser() // auth (added)
+      await fetchConfig();
+      initPagination();
+      await fetchPage(1);
+      await fetchCurrentUser(); // auth
     })
 
     return {
