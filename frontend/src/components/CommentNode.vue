@@ -31,10 +31,17 @@
       </div>
     </div>
 
-    <!-- Body: text on the left, preview on the right (if file is an image) -->
+    <!-- Body: text on the left, image preview on the right -->
     <div class="comment-body">
       <div class="body-row">
-        <div class="body-text" v-html="comment?.text || ''"></div>
+        <!-- Truncated plain-text preview; click to open sanitized full text modal -->
+        <div
+          class="body-text"
+          :title="'Click to preview full text'"
+          @click.stop="openTextPreview"
+        >
+          {{ previewText }}
+        </div>
 
         <div
           v-if="comment?.file && isImage(comment.file)"
@@ -61,19 +68,52 @@
       />
     </div>
 
-    <!-- Lightbox для превью -->
+    <!-- Image lightbox -->
     <VueEasyLightbox
       :visible="showLightbox"
       :imgs="lightboxImgs"
       :index="lightboxIndex"
       @hide="showLightbox = false"
     />
+
+    <!-- Modal with sanitized full HTML text -->
+    <div v-if="showTextModal" class="txt-modal">
+      <div class="txt-content">
+        <button class="txt-close" @click="showTextModal = false">×</button>
+        <div v-html="sanitizedPreviewHtml"></div>
+      </div>
+    </div>
   </div>
 </template>
 
 <script>
+/**
+ * CommentNode.vue
+ * - Shows a single comment node with avatar, meta and actions.
+ * - Left side: truncated plain-text preview (safe to click).
+ * - On click, opens a modal that renders FULL sanitized HTML (whitelist).
+ * - Right side (optional): image attachment preview with lightbox.
+ *
+ * Sanitization whitelist (must match CommentForm.vue rules):
+ *   Allowed tags: <a href="" title=""></a>, <code></code>, <i></i>, <strong></strong>
+ *   Allowed attrs for <a>: href, title (href must be http(s) or mailto).
+ */
 import { defineComponent } from 'vue'
 import VueEasyLightbox from 'vue-easy-lightbox'
+import DOMPurify from 'dompurify'
+
+const ALLOWED_TAGS = ['a', 'code', 'i', 'strong']
+const ALLOWED_ATTRS = ['href', 'title']
+
+// DOMPurify config — only what we need (kept consistent with CommentForm.vue)
+const SANITIZE_OPTS = {
+  ALLOWED_TAGS: ALLOWED_TAGS,
+  ALLOWED_ATTR: ALLOWED_ATTRS,
+  ALLOW_DATA_ATTR: false,
+  ALLOW_ARIA_ATTR: false,
+  // Accept only http(s) or mailto links inside <a>
+  ALLOWED_URI_REGEXP: /^(?:https?:|mailto:)/i,
+}
 
 export default defineComponent({
   name: 'CommentNode',
@@ -86,8 +126,35 @@ export default defineComponent({
     return {
       showLightbox: false,
       lightboxImgs: [],
-      lightboxIndex: 0
+      lightboxIndex: 0,
+
+      // Full-text modal
+      showTextModal: false,
+      sanitizedPreviewHtml: ''
     }
+  },
+  computed: {
+    containerStyle() {
+      const indent = this.level * 24
+      return {
+        marginLeft: this.level === 0 ? '0px' : indent + 'px',
+        marginTop: '12px',
+      }
+    },
+
+    // Max length for inline preview (plain text)
+    truncateLen() {
+      return Number(import.meta.env.VITE_COMMENT_TRUNCATE_LENGTH || 100)
+    },
+
+    // Build a safe, truncated plain-text preview (no HTML here)
+    previewText() {
+      const raw = this.comment?.text || ''
+      const div = document.createElement('div')
+      div.innerHTML = raw
+      const plain = div.textContent || div.innerText || ''
+      return plain.length > this.truncateLen ? plain.slice(0, this.truncateLen) + '…' : plain
+    },
   },
   methods: {
     formatDate(iso) {
@@ -109,15 +176,12 @@ export default defineComponent({
       this.lightboxImgs = [url]
       this.lightboxIndex = 0
       this.showLightbox = true
-    }
-  },
-  computed: {
-    containerStyle() {
-      const indent = this.level * 24
-      return {
-        marginLeft: this.level === 0 ? '0px' : indent + 'px',
-        marginTop: '12px'
-      }
+    },
+    // Open sanitized full text in a modal (no page reload)
+    openTextPreview() {
+      const raw = this.comment?.text || ''
+      this.sanitizedPreviewHtml = DOMPurify.sanitize(raw, SANITIZE_OPTS)
+      this.showTextModal = true
     }
   }
 })
@@ -154,14 +218,8 @@ export default defineComponent({
   gap: 12px;
   margin-bottom: 8px;
 }
-.header-left {
-  display: flex;
-  gap: 12px;
-  align-items: center;
-}
-.header-actions {
-  flex-shrink: 0;
-}
+.header-left { display: flex; gap: 12px; align-items: center; }
+.header-actions { flex-shrink: 0; }
 
 .avatar {
   border-radius: 50%;
@@ -170,16 +228,8 @@ export default defineComponent({
   box-shadow: 0 0 0 2px #fff;
 }
 
-.meta {
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-}
-.meta-top {
-  display: flex;
-  gap: 8px;
-  align-items: center;
-}
+.meta { display: flex; flex-direction: column; justify-content: center; }
+.meta-top { display: flex; gap: 8px; align-items: center; }
 .username { font-weight: 700; }
 .created { color: #666; font-size: 0.9em; }
 
@@ -203,19 +253,23 @@ export default defineComponent({
   line-height: 1.45;
 }
 
-/* Text on the left + preview on the right in one line */
+/* Text on the left + preview on the right */
 .body-row {
   display: flex;
   align-items: flex-start;
   gap: 12px;
 }
+
 .body-text {
   flex: 1 1 auto;
-  min-width: 0; /* so that the text is correctly compressed on long lines */
+  min-width: 0;
+  cursor: pointer;
 }
+
 .body-attachment {
   flex: 0 0 120px;
 }
+
 .attachment-thumb {
   width: 90px;
   height: 70px;
@@ -226,14 +280,16 @@ export default defineComponent({
   box-shadow: 0 1px 2px rgba(0,0,0,0.08);
 }
 
-/* Links inside text */
-.comment-body a {
+/* Links inside modal text */
+.txt-content a {
   color: #1a73e8;
   text-decoration: underline;
 }
 
 /* Replies */
-.replies { margin-top: 12px; }
+.replies {
+  margin-top: 12px;
+}
 
 /* Softer pastel colors per level */
 .comment-node[level="0"] { --level-color: #a8c6f7; background: #ffffff; }
@@ -241,4 +297,27 @@ export default defineComponent({
 .comment-node[level="2"] { --level-color: #fde59c; background: #fffef8; }
 .comment-node[level="3"] { --level-color: #f6a6a0; background: #fff9f9; }
 .comment-node[level="4"] { --level-color: #d7a8e6; background: #fcf8ff; }
+
+/* Modal for sanitized full-text preview (same look & feel as list) */
+.txt-modal {
+  position: fixed;
+  top: 0; left: 0; width: 100%; height: 100%;
+  background: rgba(0,0,0,0.65);
+  display: flex; justify-content: center; align-items: center;
+  z-index: 2000;
+}
+.txt-content {
+  background: #fff;
+  max-width: 80%;
+  max-height: 80%;
+  overflow: auto;
+  padding: 16px;
+  border-radius: 8px;
+  position: relative;
+  white-space: normal;
+}
+.txt-close {
+  position: absolute; top: 8px; right: 12px;
+  font-size: 20px; border: none; background: transparent; cursor: pointer;
+}
 </style>
