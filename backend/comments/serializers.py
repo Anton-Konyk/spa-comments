@@ -2,8 +2,9 @@ import requests
 import bleach
 from rest_framework import serializers
 
-from spa_comments import settings
-from spa_comments.settings import RECAPTCHA_VERIFY_URL
+
+from django.conf import settings
+
 from users.serializers import SpaUserSerializer
 from .models import Comment
 from drf_spectacular.utils import extend_schema_field
@@ -59,7 +60,7 @@ class CommentCreateSerializer(serializers.ModelSerializer):
         secret = settings.RECAPTCHA_SECRET_KEY
 
         response = requests.post(
-            RECAPTCHA_VERIFY_URL,
+            settings.RECAPTCHA_VERIFY_URL,
             data={"secret": secret, "response": token},
         )
         result = response.json()

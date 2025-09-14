@@ -1,22 +1,21 @@
 import requests
 from django.contrib.auth.password_validation import validate_password
-from django.core.validators import validate_email
 from drf_spectacular.utils import extend_schema_field
 from rest_framework import serializers
 from django.contrib.auth import authenticate
-from django.core.exceptions import ValidationError
 from rest_framework.validators import UniqueValidator
 
-from spa_comments import settings
-from spa_comments.settings import RECAPTCHA_VERIFY_URL
-from .models import SpaUser
+from django.conf import settings
+from django.contrib.auth import get_user_model
+
+User = get_user_model()
 
 
 class SpaUserSerializer(serializers.ModelSerializer):
     avatar = serializers.SerializerMethodField()
 
     class Meta:
-        model = SpaUser
+        model = User
         fields = ["id", "username", "email", "avatar"]
 
     @extend_schema_field(str)
@@ -40,9 +39,9 @@ class LoginSerializer(serializers.Serializer):
         user = authenticate(username=username_or_email, password=password)
         if not user:
             try:
-                user_obj = SpaUser.objects.get(email=username_or_email.lower())
+                user_obj = User.objects.get(email=username_or_email.lower())
                 user = authenticate(username=user_obj.username, password=password)
-            except SpaUser.DoesNotExist:
+            except User.DoesNotExist:
                 pass
 
         if not user:
@@ -59,11 +58,11 @@ class RegisterUserSerializer(serializers.ModelSerializer):
     recaptcha_token = serializers.CharField(write_only=True)
     email = serializers.EmailField(
         required=True,
-        validators=[UniqueValidator(queryset=SpaUser.objects.all())]
+        validators=[UniqueValidator(queryset=User.objects.all())]
     )
 
     class Meta:
-        model = SpaUser
+        model = User
         fields = [
             "id",
             "username",
@@ -82,7 +81,7 @@ class RegisterUserSerializer(serializers.ModelSerializer):
         secret = settings.RECAPTCHA_SECRET_KEY
         try:
             response = requests.post(
-                RECAPTCHA_VERIFY_URL,
+                settings.RECAPTCHA_VERIFY_URL,
                 data={"secret": secret, "response": value},
                 timeout=5,
             )
@@ -98,7 +97,7 @@ class RegisterUserSerializer(serializers.ModelSerializer):
 
     def create(self, validated_data):
         validated_data.pop("recaptcha_token", None)
-        user = SpaUser.objects.create_user(
+        user = User.objects.create_user(
             username=validated_data["username"],
             email=validated_data["email"].lower(),
             password=validated_data["password"],

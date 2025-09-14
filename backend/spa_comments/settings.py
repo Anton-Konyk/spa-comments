@@ -18,6 +18,8 @@ from dotenv import load_dotenv
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
+ROOT_DIR = BASE_DIR.parent
+
 load_dotenv()
 
 # Quick-start development settings - unsuitable for production
@@ -101,7 +103,7 @@ WSGI_APPLICATION = "spa_comments.wsgi.application"
 DATABASES = {
     "default": {
         "ENGINE": "django.db.backends.sqlite3",
-        "NAME": BASE_DIR / "db.sqlite3",
+        "NAME": ROOT_DIR / "db.sqlite3",
     }
 }
 
@@ -146,8 +148,8 @@ SPECTACULAR_SETTINGS = {
     "SWAGGER_UI_SETTINGS": {
         "deepLinking": True,
         "defaultModelRendering": "model",
-        "defaultModelsExpanDepth": 2,
-        "defaultModelExpanDepth": 2,
+        "defaultModelsExpandDepth": 2,
+        "defaultModelExpandDepth": 2,
     },
 }
 

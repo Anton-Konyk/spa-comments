@@ -6,10 +6,9 @@ from django.core.exceptions import ValidationError
 from django.core.validators import FileExtensionValidator
 from django.utils.text import slugify
 from django.db import models
+from django.conf import settings
 from PIL import Image
 from lxml import html, etree
-
-from users.models import SpaUser
 
 
 IMAGE_RESIZE_WIDTH = 320
@@ -45,7 +44,7 @@ def to_valid_xhtml_fragment(cleaned: str) -> str:
     try:
         node = html.fromstring(wrapped)
     except etree.ParserError as e:
-        raise ValidationError(f"Невалидная HTML-разметка: {e}")
+        raise ValidationError(f"Invalid HTML markup: {e}")
 
     xhtml = html.tostring(node, method="xml", encoding="unicode")
 
@@ -57,7 +56,7 @@ def to_valid_xhtml_fragment(cleaned: str) -> str:
 
 class Comment(models.Model):
     user = models.ForeignKey(
-        SpaUser, on_delete=models.CASCADE, related_name="comments"
+        settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="comments"
     )
     created_at = models.DateTimeField(auto_now_add=True)
     home_page = models.URLField(blank=True, null=True)
