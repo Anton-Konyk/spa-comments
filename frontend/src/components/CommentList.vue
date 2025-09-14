@@ -51,6 +51,23 @@
         Created At ⇅
         <span v-if="sortField === 'created_at'">{{ sortDirection === 'asc' ? '▲' : '▼' }}</span>
       </button>
+
+      <!-- Button to add root comment -->
+      <div v-if="currentUser" class="add-root">
+        <button class="add-btn" @click="showRootForm = !showRootForm">
+          {{ showRootForm ? 'Cancel' : 'Add Comment' }}
+        </button>
+      </div>
+    </div>
+
+    <!-- Root Comment Form -->
+    <div v-if="showRootForm" class="root-form">
+      <CommentForm
+        :current-user="currentUser"
+        :parent-id="null"
+        @comment-posted="onRootCreated"
+        @cancel="showRootForm = false"
+      />
     </div>
 
     <!-- Table -->
@@ -204,10 +221,11 @@ import axios from 'axios'
 import Cookies from 'js-cookie'
 import { usePagination } from '../composables/usePagination.js'
 import VueEasyLightbox from "vue-easy-lightbox"
+import CommentForm from './CommentForm.vue'
 
 export default {
   name: 'CommentList',
-  components: { VueEasyLightbox },
+  components: { VueEasyLightbox, CommentForm },
 
   setup() {
     const router = useRouter()
@@ -236,6 +254,8 @@ export default {
 
     const showCommentModal = ref(false)
     const commentPreviewHtml = ref('')
+
+    const showRootForm = ref(false)
 
     const isImage = (url) => {
       return /\.(jpg|jpeg|png|gif|webp)$/i.test(url)
@@ -445,6 +465,15 @@ export default {
       showCommentModal.value = true
 }
 
+    const onRootCreated = async () => {
+      showRootForm.value = false
+      if (useClientPaging.value) {
+        await fetchAllPages()
+      } else {
+        await fetchPage(currentPage.value)
+      }
+    }
+
     onMounted(async () => {
       await fetchConfig()
       initPagination()
@@ -484,6 +513,9 @@ export default {
       openTextPreview,
       showCommentModal,
       commentPreviewHtml,
+
+      showRootForm,
+      onRootCreated,
 
       // auth
       currentUser,
@@ -747,5 +779,29 @@ export default {
   border: none;
   background: transparent;
   cursor: pointer;
+
+  /* Add root comment */
+  .add-root {
+  margin: 12px 0;
+}
+.add-btn {
+  padding: 8px 14px;
+  background: #1a73e8;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 14px;
+}
+.add-btn:hover {
+  background: #1669c1;
+}
+.root-form {
+  margin: 16px 0;
+  padding: 12px;
+  border: 1px solid rgba(0,0,0,0.1);
+  border-radius: 6px;
+  background: #fafafa;
+}
 }
 </style>
