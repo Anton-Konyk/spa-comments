@@ -106,6 +106,7 @@ class Comment(models.Model):
             self.text,
             tags=ALLOWED_TAGS,
             attributes=ALLOWED_ATTRS,
+            protocols=["http", "https"],
             strip=True,
             strip_comments=True
         )
