@@ -19,24 +19,23 @@
       </div>
 
       <p class="allowed-hint">
-        Allowed HTML:
-        &lt;a href="" title=""&gt;&lt;/a&gt;, &lt;code&gt;&lt;/code&gt;, &lt;i&gt;&lt;/i&gt;, &lt;strong&gt;&lt;/strong&gt;
+        Allowed HTML: &lt;a href="" title=""&gt;&lt;/a&gt;, &lt;code&gt;&lt;/code&gt;,
+        &lt;i&gt;&lt;/i&gt;, &lt;strong&gt;&lt;/strong&gt;
       </p>
 
       <!-- Tag toolbar -->
       <div class="tag-toolbar">
         <button type="button" class="tag-btn" title="Italic <i>" @click="applyTag('i')">[i]</button>
-        <button type="button" class="tag-btn" title="Bold <strong>" @click="applyTag('strong')">[strong]</button>
-        <button type="button" class="tag-btn" title="Code <code>" @click="applyTag('code')">[code]</button>
+        <button type="button" class="tag-btn" title="Bold <strong>" @click="applyTag('strong')">
+          [strong]
+        </button>
+        <button type="button" class="tag-btn" title="Code <code>" @click="applyTag('code')">
+          [code]
+        </button>
         <button type="button" class="tag-btn" title="Link <a>" @click="insertLink">[a]</button>
       </div>
 
-      <textarea
-        ref="ta"
-        v-model="text"
-        placeholder="Write your comment..."
-        required
-      ></textarea>
+      <textarea ref="ta" v-model="text" placeholder="Write your comment..." required></textarea>
 
       <input type="file" @change="handleFileChange" />
 
@@ -45,7 +44,7 @@
 
       <div class="form-actions">
         <button type="submit" :disabled="submitting">
-          {{ submitting ? "Submitting..." : "Submit" }}
+          {{ submitting ? 'Submitting...' : 'Submit' }}
         </button>
         <button type="button" class="cancel-btn" @click="cancelReply">Cancel</button>
       </div>
@@ -74,35 +73,35 @@
  * - Buttons wrap current selection (or insert placeholders) with allowed tags.
  * - <a> asks for URL (http(s)/mailto) and optional title; inserts <a href="..." title="...">selected or placeholder</a>.
  */
-import { ref, onMounted, watch, computed, nextTick } from "vue";
-import { useRouter } from "vue-router";
-import axios from "axios";
-import Cookies from "js-cookie";
-import DOMPurify from "dompurify";
+import { ref, onMounted, watch, computed, nextTick } from 'vue';
+import { useRouter } from 'vue-router';
+import axios from 'axios';
+import Cookies from 'js-cookie';
+import DOMPurify from 'dompurify';
 
 const props = defineProps({
   currentUser: { type: Object, default: null },
   parentId: { type: [Number, String], default: null },
-  replyToText: { type: String, default: "" },
-  replyToAuthor: { type: String, default: "" },
+  replyToText: { type: String, default: '' },
+  replyToAuthor: { type: String, default: '' },
 });
 
-const emit = defineEmits(["comment-posted", "cancel"]);
+const emit = defineEmits(['comment-posted', 'cancel']);
 const router = useRouter();
 
-const text = ref("");
+const text = ref('');
 const ta = ref(null); // textarea ref for selection handling
 const file = ref(null);
 const submitting = ref(false);
-const errorMessage = ref("");
-const successMessage = ref("");
+const errorMessage = ref('');
+const successMessage = ref('');
 
 const captcha = ref(null);
 let widgetId = null;
 
 /* ====== Allowed HTML config ====== */
-const ALLOWED_TAGS = ["a", "code", "i", "strong"];
-const ALLOWED_ATTRS = ["href", "title"];
+const ALLOWED_TAGS = ['a', 'code', 'i', 'strong'];
+const ALLOWED_ATTRS = ['href', 'title'];
 
 // DOMPurify options — only what we need
 const SANITIZE_OPTS = {
@@ -130,14 +129,14 @@ function checkTagsWellFormed(html) {
 
   while ((m = tagRe.exec(html))) {
     const raw = m[0];
-    const name = (m[1] || "").toLowerCase();
-    const attrStr = (m[2] || "").replace(/\s+/g, " ").trim();
+    const name = (m[1] || '').toLowerCase();
+    const attrStr = (m[2] || '').replace(/\s+/g, ' ').trim();
 
     if (!isAllowedTag(name)) {
       return { ok: false, msg: `Tag <${name}> is not allowed` };
     }
 
-    const isClose = raw.startsWith("</");
+    const isClose = raw.startsWith('</');
     if (isClose) {
       const last = stack.pop();
       if (last !== name) {
@@ -147,11 +146,11 @@ function checkTagsWellFormed(html) {
     }
 
     // Opening tag — validate attributes
-    if (name === "a") {
+    if (name === 'a') {
       // Parse key="value" pairs; disallow anything else (single quotes, no value, etc.)
       const pairs = [...attrStr.matchAll(/\s*([a-zA-Z:-]+)\s*=\s*"([^"]*)"\s*/g)];
-      const reconstructed = pairs.map((p) => p[0].trim()).join(" ");
-      if ((attrStr || "") && reconstructed !== attrStr) {
+      const reconstructed = pairs.map((p) => p[0].trim()).join(' ');
+      if ((attrStr || '') && reconstructed !== attrStr) {
         return { ok: false, msg: `Only href and title are allowed on <a> (use double quotes)` };
       }
       for (const [, key, val] of pairs) {
@@ -159,7 +158,7 @@ function checkTagsWellFormed(html) {
         if (!ALLOWED_ATTRS.includes(k)) {
           return { ok: false, msg: `Attribute "${key}" is not allowed on <a>` };
         }
-        if (k === "href" && !/^(https?:|mailto:)/i.test(val || "")) {
+        if (k === 'href' && !/^(https?:|mailto:)/i.test(val || '')) {
           return { ok: false, msg: `href must start with http(s):// or mailto:` };
         }
       }
@@ -187,10 +186,10 @@ function assertXHTMLWellFormed(fragment) {
   const xhtmlDoc =
     `<?xml version="1.0" encoding="UTF-8"?>` +
     `<div xmlns="http://www.w3.org/1999/xhtml">${fragment}</div>`;
-  const doc = new DOMParser().parseFromString(xhtmlDoc, "application/xhtml+xml");
-  const hasError = doc.getElementsByTagName("parsererror").length > 0;
+  const doc = new DOMParser().parseFromString(xhtmlDoc, 'application/xhtml+xml');
+  const hasError = doc.getElementsByTagName('parsererror').length > 0;
   if (hasError) {
-    throw new Error("Markup is not well-formed XHTML (check tag nesting/closing & entities).");
+    throw new Error('Markup is not well-formed XHTML (check tag nesting/closing & entities).');
   }
 }
 
@@ -202,8 +201,8 @@ function assertXHTMLWellFormed(fragment) {
  * 4) Parses as well-formed XHTML (DOMParser)
  */
 function validateTextOrThrow(raw) {
-  const trimmed = (raw || "").trim();
-  if (!trimmed) throw new Error("Text is required");
+  const trimmed = (raw || '').trim();
+  if (!trimmed) throw new Error('Text is required');
 
   const sanitized = DOMPurify.sanitize(trimmed, SANITIZE_OPTS);
   if (sanitized !== trimmed) {
@@ -220,9 +219,7 @@ function validateTextOrThrow(raw) {
 }
 
 /** Short preview for the "Replying to" header */
-const clippedReply = computed(() =>
-  (props.replyToText || "").replace(/\s+/g, " ").slice(0, 140)
-);
+const clippedReply = computed(() => (props.replyToText || '').replace(/\s+/g, ' ').slice(0, 140));
 
 const handleFileChange = (e) => {
   file.value = e.target.files[0] || null;
@@ -259,14 +256,13 @@ function getSel() {
 }
 
 /** Replace selection with before + selected + after; set caret after inserted content */
-async function wrapSelection(before, after, placeholder = "") {
+async function wrapSelection(before, after, placeholder = '') {
   const el = ta.value;
-  const value = text.value || "";
+  const value = text.value || '';
   const { start, end } = getSel();
   const selected = value.slice(start, end) || placeholder;
 
-  const updated =
-    value.slice(0, start) + before + selected + after + value.slice(end);
+  const updated = value.slice(0, start) + before + selected + after + value.slice(end);
 
   text.value = updated;
 
@@ -283,9 +279,9 @@ async function wrapSelection(before, after, placeholder = "") {
 function applyTag(tag) {
   // Only allowed tags are used here
   const map = {
-    i: { before: "<i>", after: "</i>", ph: "italic text" },
-    strong: { before: "<strong>", after: "</strong>", ph: "bold text" },
-    code: { before: "<code>", after: "</code>", ph: "code" },
+    i: { before: '<i>', after: '</i>', ph: 'italic text' },
+    strong: { before: '<strong>', after: '</strong>', ph: 'bold text' },
+    code: { before: '<code>', after: '</code>', ph: 'code' },
   };
   const cfg = map[tag];
   if (!cfg) return;
@@ -308,54 +304,54 @@ function insertLink() {
 }
 
 const handleSubmit = async () => {
-  errorMessage.value = "";
-  successMessage.value = "";
+  errorMessage.value = '';
+  successMessage.value = '';
 
   // 0) Validate HTML content
   try {
     validateTextOrThrow(text.value);
   } catch (e) {
-    errorMessage.value = e?.message || "Invalid message";
+    errorMessage.value = e?.message || 'Invalid message';
     return;
   }
 
   // 1) Ensure reCAPTCHA completed
   const recaptchaToken = window.grecaptcha?.getResponse(widgetId);
   if (!recaptchaToken) {
-    errorMessage.value = "Please complete the reCAPTCHA.";
+    errorMessage.value = 'Please complete the reCAPTCHA.';
     return;
   }
 
   // 2) Build FormData (send sanitized text even though it equals original)
   const formData = new FormData();
-  formData.append("text", DOMPurify.sanitize(text.value, SANITIZE_OPTS));
+  formData.append('text', DOMPurify.sanitize(text.value, SANITIZE_OPTS));
 
-  if (props.parentId !== null && props.parentId !== undefined && props.parentId !== "") {
+  if (props.parentId !== null && props.parentId !== undefined && props.parentId !== '') {
     const pkNum = Number(props.parentId);
     if (Number.isFinite(pkNum) && pkNum > 0) {
-      formData.append("parent", pkNum.toString());
+      formData.append('parent', pkNum.toString());
     }
   }
-  if (file.value) formData.append("file", file.value);
-  formData.append("recaptcha_token", recaptchaToken);
+  if (file.value) formData.append('file', file.value);
+  formData.append('recaptcha_token', recaptchaToken);
 
   submitting.value = true;
   try {
-    await axios.post(
-      `${import.meta.env.VITE_BACKEND_URL}/api/v1/comments/create/`,
-      formData,
-      { withCredentials: true, headers: { "X-CSRFToken": Cookies.get("csrftoken") } }
-    );
+    await axios.post(`${import.meta.env.VITE_BACKEND_URL}/api/v1/comments/create/`, formData, {
+      withCredentials: true,
+      headers: { 'X-CSRFToken': Cookies.get('csrftoken') },
+    });
 
-    successMessage.value = "Comment submitted!";
-    text.value = "";
+    successMessage.value = 'Comment submitted!';
+    text.value = '';
     file.value = null;
     if (widgetId !== null) window.grecaptcha.reset(widgetId);
-    emit("comment-posted");
+    emit('comment-posted');
   } catch (err) {
-    errorMessage.value =
-      err?.response?.data ? JSON.stringify(err.response.data) : "Failed to create comment.";
-    console.error("Create comment error:", err?.response?.data || err);
+    errorMessage.value = err?.response?.data
+      ? JSON.stringify(err.response.data)
+      : 'Failed to create comment.';
+    console.error('Create comment error:', err?.response?.data || err);
   } finally {
     submitting.value = false;
   }
@@ -364,21 +360,21 @@ const handleSubmit = async () => {
 /** Auth navigation — preserve intent so user returns to reply after auth */
 const goLogin = () => {
   if (props.parentId) {
-    sessionStorage.setItem("pendingReply", JSON.stringify({ commentId: String(props.parentId) }));
+    sessionStorage.setItem('pendingReply', JSON.stringify({ commentId: String(props.parentId) }));
   }
   const next = window.location.pathname + window.location.search;
-  sessionStorage.setItem("nextAfterAuth", next);
-  router.push({ name: "Login", query: { next } });
+  sessionStorage.setItem('nextAfterAuth', next);
+  router.push({ name: 'Login', query: { next } });
 };
 const goRegister = () => {
   if (props.parentId) {
-    sessionStorage.setItem("pendingReply", JSON.stringify({ commentId: String(props.parentId) }));
+    sessionStorage.setItem('pendingReply', JSON.stringify({ commentId: String(props.parentId) }));
   }
   const next = window.location.pathname + window.location.search;
-  sessionStorage.setItem("nextAfterAuth", next);
-  router.push({ name: "Register", query: { next } });
+  sessionStorage.setItem('nextAfterAuth', next);
+  router.push({ name: 'Register', query: { next } });
 };
-const cancelReply = () => emit("cancel");
+const cancelReply = () => emit('cancel');
 </script>
 
 <style scoped>
@@ -397,7 +393,9 @@ const cancelReply = () => emit("cancel");
   margin-bottom: 10px;
   font-size: 0.95rem;
 }
-.preview-text { color: #333; }
+.preview-text {
+  color: #333;
+}
 
 .tag-toolbar {
   display: flex;
@@ -408,12 +406,14 @@ const cancelReply = () => emit("cancel");
 .tag-btn {
   padding: 4px 8px;
   font-size: 12px;
-  border: 1px solid rgba(0,0,0,0.15);
+  border: 1px solid rgba(0, 0, 0, 0.15);
   background: #fff;
   border-radius: 6px;
   cursor: pointer;
 }
-.tag-btn:hover { background: #f5f7fb; }
+.tag-btn:hover {
+  background: #f5f7fb;
+}
 
 textarea {
   width: 100%;
@@ -424,10 +424,11 @@ textarea {
   border-radius: 6px;
 }
 .form-actions {
-  display: flex; gap: 10px; margin-top: 1rem;
+  display: flex;
+  gap: 10px;
+  margin-top: 1rem;
 }
 .form-actions button,
-
 .auth-buttons button {
   flex: 1;
   padding: 0.5rem;
@@ -436,12 +437,14 @@ textarea {
   border-radius: 4px;
 }
 
-button[type="submit"] {
+button[type='submit'] {
   background-color: #007bff;
   color: white;
 }
 
-button[type="submit"]:disabled { background-color: #6c757d; }
+button[type='submit']:disabled {
+  background-color: #6c757d;
+}
 
 .cancel-btn {
   background-color: #6c757d;

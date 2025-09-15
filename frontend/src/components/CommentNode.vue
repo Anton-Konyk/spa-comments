@@ -1,10 +1,5 @@
 <template>
-  <div
-    class="comment-node"
-    :id="`comment-${comment.id}`"
-    :level="level"
-    :style="containerStyle"
-  >
+  <div class="comment-node" :id="`comment-${comment.id}`" :level="level" :style="containerStyle">
     <!-- Header: avatar + meta + actions -->
     <div class="comment-header">
       <div class="header-left">
@@ -25,9 +20,7 @@
       </div>
 
       <div class="header-actions">
-        <button class="reply-btn" @click.stop="emitReply">
-          Reply
-        </button>
+        <button class="reply-btn" @click.stop="emitReply">Reply</button>
       </div>
     </div>
 
@@ -35,18 +28,11 @@
     <div class="comment-body">
       <div class="body-row">
         <!-- Truncated plain-text preview; click to open sanitized full text modal -->
-        <div
-          class="body-text"
-          :title="'Click to preview full text'"
-          @click.stop="openTextPreview"
-        >
+        <div class="body-text" :title="'Click to preview full text'" @click.stop="openTextPreview">
           {{ previewText }}
         </div>
 
-        <div
-          v-if="comment?.file && isImage(comment.file)"
-          class="body-attachment"
-        >
+        <div v-if="comment?.file && isImage(comment.file)" class="body-attachment">
           <img
             :src="comment.file"
             alt="attachment"
@@ -98,12 +84,12 @@
  *   Allowed tags: <a href="" title=""></a>, <code></code>, <i></i>, <strong></strong>
  *   Allowed attrs for <a>: href, title (href must be http(s) or mailto).
  */
-import { defineComponent } from 'vue'
-import VueEasyLightbox from 'vue-easy-lightbox'
-import DOMPurify from 'dompurify'
+import { defineComponent } from 'vue';
+import VueEasyLightbox from 'vue-easy-lightbox';
+import DOMPurify from 'dompurify';
 
-const ALLOWED_TAGS = ['a', 'code', 'i', 'strong']
-const ALLOWED_ATTRS = ['href', 'title']
+const ALLOWED_TAGS = ['a', 'code', 'i', 'strong'];
+const ALLOWED_ATTRS = ['href', 'title'];
 
 // DOMPurify config — only what we need (kept consistent with CommentForm.vue)
 const SANITIZE_OPTS = {
@@ -113,14 +99,14 @@ const SANITIZE_OPTS = {
   ALLOW_ARIA_ATTR: false,
   // Accept only http(s) or mailto links inside <a>
   ALLOWED_URI_REGEXP: /^(?:https?:|mailto:)/i,
-}
+};
 
 export default defineComponent({
   name: 'CommentNode',
   components: { VueEasyLightbox },
   props: {
     comment: { type: Object, required: true },
-    level: { type: Number, default: 0 }
+    level: { type: Number, default: 0 },
   },
   data() {
     return {
@@ -130,61 +116,65 @@ export default defineComponent({
 
       // Full-text modal
       showTextModal: false,
-      sanitizedPreviewHtml: ''
-    }
+      sanitizedPreviewHtml: '',
+    };
   },
   computed: {
     containerStyle() {
-      const indent = this.level * 24
+      const indent = this.level * 24;
       return {
         marginLeft: this.level === 0 ? '0px' : indent + 'px',
         marginTop: '12px',
-      }
+      };
     },
 
     // Max length for inline preview (plain text)
     truncateLen() {
-      return Number(import.meta.env.VITE_COMMENT_TRUNCATE_LENGTH || 100)
+      return Number(import.meta.env.VITE_COMMENT_TRUNCATE_LENGTH || 100);
     },
 
     // Build a safe, truncated plain-text preview (no HTML here)
     previewText() {
-      const raw = this.comment?.text || ''
-      const div = document.createElement('div')
-      div.innerHTML = raw
-      const plain = div.textContent || div.innerText || ''
-      return plain.length > this.truncateLen ? plain.slice(0, this.truncateLen) + '…' : plain
+      const raw = this.comment?.text || '';
+      const div = document.createElement('div');
+      div.innerHTML = raw;
+      const plain = div.textContent || div.innerText || '';
+      return plain.length > this.truncateLen ? plain.slice(0, this.truncateLen) + '…' : plain;
     },
   },
   methods: {
     formatDate(iso) {
-      if (!iso) return ''
-      try { return new Date(iso).toLocaleString() } catch { return iso }
+      if (!iso) return '';
+      try {
+        return new Date(iso).toLocaleString();
+      } catch {
+        return iso;
+      }
     },
     // Emit only id + text + authorName (safe)
     emitReply() {
       this.$emit('reply', {
         id: this.comment.id,
         text: this.comment.text,
-        authorName: this.comment.user?.username
-      })
+        authorName: this.comment.user?.username,
+      });
     },
     isImage(url) {
-      return /\.(jpe?g|png|gif|webp)$/i.test(url || '')
+      return /\.(jpe?g|png|gif|webp)$/i.test(url || '');
     },
     openLightbox(url) {
-      this.lightboxImgs = [url]
-      this.lightboxIndex = 0
-      this.showLightbox = true
+      this.lightboxImgs = [url];
+      this.lightboxIndex = 0;
+      this.showLightbox = true;
     },
     // Open sanitized full text in a modal (no page reload)
     openTextPreview() {
-      const raw = this.comment?.text || ''
-      this.sanitizedPreviewHtml = DOMPurify.sanitize(raw, SANITIZE_OPTS)
-      this.showTextModal = true
-    }
-  }
-})
+      const raw = this.comment?.text || '';
+      this.sanitizedPreviewHtml = DOMPurify.sanitize(raw, SANITIZE_OPTS);
+      this.showTextModal = true;
+    },
+  },
+});
 </script>
 
 <style scoped>
@@ -192,15 +182,15 @@ export default defineComponent({
   border-radius: 6px;
   padding: 12px;
   margin-top: 12px;
-  border: 1px solid rgba(0,0,0,0.12);
-  box-shadow: 0 1px 2px rgba(0,0,0,0.08);
+  border: 1px solid rgba(0, 0, 0, 0.12);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.08);
   position: relative;
   background: #ffffff;
 }
 
 /* Left pastel stripe by level */
 .comment-node::before {
-  content: "";
+  content: '';
   position: absolute;
   top: 0;
   left: -6px;
@@ -218,8 +208,14 @@ export default defineComponent({
   gap: 12px;
   margin-bottom: 8px;
 }
-.header-left { display: flex; gap: 12px; align-items: center; }
-.header-actions { flex-shrink: 0; }
+.header-left {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+}
+.header-actions {
+  flex-shrink: 0;
+}
 
 .avatar {
   border-radius: 50%;
@@ -228,14 +224,27 @@ export default defineComponent({
   box-shadow: 0 0 0 2px #fff;
 }
 
-.meta { display: flex; flex-direction: column; justify-content: center; }
-.meta-top { display: flex; gap: 8px; align-items: center; }
-.username { font-weight: 700; }
-.created { color: #666; font-size: 0.9em; }
+.meta {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+.meta-top {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+.username {
+  font-weight: 700;
+}
+.created {
+  color: #666;
+  font-size: 0.9em;
+}
 
 .reply-btn {
   padding: 6px 10px;
-  border: 1px solid rgba(26,115,232,0.4);
+  border: 1px solid rgba(26, 115, 232, 0.4);
   background: #1a73e8;
   color: #fff;
   border-radius: 6px;
@@ -275,9 +284,9 @@ export default defineComponent({
   height: 70px;
   object-fit: cover;
   border-radius: 6px;
-  border: 1px solid rgba(0,0,0,0.12);
+  border: 1px solid rgba(0, 0, 0, 0.12);
   cursor: pointer;
-  box-shadow: 0 1px 2px rgba(0,0,0,0.08);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.08);
 }
 
 /* Links inside modal text */
@@ -292,18 +301,38 @@ export default defineComponent({
 }
 
 /* Softer pastel colors per level */
-.comment-node[level="0"] { --level-color: #a8c6f7; background: #ffffff; }
-.comment-node[level="1"] { --level-color: #a8e6b0; background: #f9fdf9; }
-.comment-node[level="2"] { --level-color: #fde59c; background: #fffef8; }
-.comment-node[level="3"] { --level-color: #f6a6a0; background: #fff9f9; }
-.comment-node[level="4"] { --level-color: #d7a8e6; background: #fcf8ff; }
+.comment-node[level='0'] {
+  --level-color: #a8c6f7;
+  background: #ffffff;
+}
+.comment-node[level='1'] {
+  --level-color: #a8e6b0;
+  background: #f9fdf9;
+}
+.comment-node[level='2'] {
+  --level-color: #fde59c;
+  background: #fffef8;
+}
+.comment-node[level='3'] {
+  --level-color: #f6a6a0;
+  background: #fff9f9;
+}
+.comment-node[level='4'] {
+  --level-color: #d7a8e6;
+  background: #fcf8ff;
+}
 
 /* Modal for sanitized full-text preview (same look & feel as list) */
 .txt-modal {
   position: fixed;
-  top: 0; left: 0; width: 100%; height: 100%;
-  background: rgba(0,0,0,0.65);
-  display: flex; justify-content: center; align-items: center;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.65);
+  display: flex;
+  justify-content: center;
+  align-items: center;
   z-index: 2000;
 }
 .txt-content {
@@ -317,7 +346,12 @@ export default defineComponent({
   white-space: normal;
 }
 .txt-close {
-  position: absolute; top: 8px; right: 12px;
-  font-size: 20px; border: none; background: transparent; cursor: pointer;
+  position: absolute;
+  top: 8px;
+  right: 12px;
+  font-size: 20px;
+  border: none;
+  background: transparent;
+  cursor: pointer;
 }
 </style>

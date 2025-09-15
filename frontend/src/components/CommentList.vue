@@ -3,12 +3,7 @@
     <!-- Auth bar (added) -->
     <div class="auth-bar">
       <template v-if="currentUser">
-        <img
-          v-if="currentUser.avatar"
-          :src="currentUser.avatar"
-          alt="avatar"
-          class="auth-avatar"
-        />
+        <img v-if="currentUser.avatar" :src="currentUser.avatar" alt="avatar" class="auth-avatar" />
         <span class="auth-username">Hello, {{ currentUser.username }}</span>
         <button @click="logout" class="auth-btn">Logout</button>
       </template>
@@ -116,7 +111,11 @@
               <span class="created">{{ formatDate(comment.created_at) }}</span>
             </td>
 
-            <td class="cell text-cell" @click.stop="openTextPreview(comment)" title="Click to preview full text">
+            <td
+              class="cell text-cell"
+              @click.stop="openTextPreview(comment)"
+              title="Click to preview full text"
+            >
               {{ truncateText(comment.text) }}
             </td>
 
@@ -139,18 +138,11 @@
                   TXT File
                 </span>
                 <!-- Any other file types -->
-                <a
-                  v-else
-                  :href="comment.file"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                >
+                <a v-else :href="comment.file" target="_blank" rel="noopener noreferrer">
                   Download
                 </a>
               </template>
-              <template v-else>
-                –
-              </template>
+              <template v-else> – </template>
             </td>
 
             <td class="cell replies-cell">
@@ -191,97 +183,95 @@
   </div>
 
   <VueEasyLightbox
-      :visible="showLightbox"
-      :imgs="lightboxImgs"
-      :index="lightboxIndex"
-      @hide="showLightbox = false"
-    />
+    :visible="showLightbox"
+    :imgs="lightboxImgs"
+    :index="lightboxIndex"
+    @hide="showLightbox = false"
+  />
 
   <!-- Modal for TXT preview -->
-    <div v-if="showTxtModal" class="txt-modal">
-      <div class="txt-content">
-        <button class="txt-close" @click="showTxtModal = false">×</button>
-        <pre>{{ txtContent }}</pre>
-      </div>
+  <div v-if="showTxtModal" class="txt-modal">
+    <div class="txt-content">
+      <button class="txt-close" @click="showTxtModal = false">×</button>
+      <pre>{{ txtContent }}</pre>
     </div>
+  </div>
 
   <!-- Modal for comment text preview -->
-    <div v-if="showCommentModal" class="txt-modal">
-      <div class="txt-content">
-        <button class="txt-close" @click="showCommentModal = false">×</button>
-        <div v-html="commentPreviewHtml"></div>
-      </div>
-</div>
+  <div v-if="showCommentModal" class="txt-modal">
+    <div class="txt-content">
+      <button class="txt-close" @click="showCommentModal = false">×</button>
+      <div v-html="commentPreviewHtml"></div>
+    </div>
+  </div>
 </template>
 
 <script>
-import { ref, computed, onMounted, watch } from 'vue'
-import { useRouter } from 'vue-router'
-import axios from 'axios'
-import Cookies from 'js-cookie'
-import { usePagination } from '../composables/usePagination.js'
-import VueEasyLightbox from "vue-easy-lightbox"
-import CommentForm from './CommentForm.vue'
+import { ref, computed, onMounted, watch } from 'vue';
+import { useRouter } from 'vue-router';
+import axios from 'axios';
+import Cookies from 'js-cookie';
+import { usePagination } from '../composables/usePagination.js';
+import VueEasyLightbox from 'vue-easy-lightbox';
+import CommentForm from './CommentForm.vue';
 
 export default {
   name: 'CommentList',
   components: { VueEasyLightbox, CommentForm },
 
   setup() {
-    const router = useRouter()
-    const comments = ref([])
-    const allComments = ref([])
-    const loading = ref(true)
-    const config = ref(null)
+    const router = useRouter();
+    const comments = ref([]);
+    const allComments = ref([]);
+    const loading = ref(true);
+    const config = ref(null);
 
     // auth state (added)
-    const currentUser = ref(null)
+    const currentUser = ref(null);
 
-    const currentPage = ref(1)
-    const totalPages = ref(1)
-    const inputPage = ref(1)
+    const currentPage = ref(1);
+    const totalPages = ref(1);
+    const inputPage = ref(1);
 
-    const sortField = ref(null)        // 'username' | 'email' | 'created_at' | null
-    const sortDirection = ref('asc')   // 'asc' | 'desc'
-    const useClientPaging = ref(false)
+    const sortField = ref(null); // 'username' | 'email' | 'created_at' | null
+    const sortDirection = ref('asc'); // 'asc' | 'desc'
+    const useClientPaging = ref(false);
 
-    const showLightbox = ref(false)
-    const lightboxIndex = ref(0)
-    const lightboxImgs = ref([])
+    const showLightbox = ref(false);
+    const lightboxIndex = ref(0);
+    const lightboxImgs = ref([]);
 
-    const showTxtModal = ref(false)
-    const txtContent = ref('')
+    const showTxtModal = ref(false);
+    const txtContent = ref('');
 
-    const showCommentModal = ref(false)
-    const commentPreviewHtml = ref('')
+    const showCommentModal = ref(false);
+    const commentPreviewHtml = ref('');
 
-    const showRootForm = ref(false)
+    const showRootForm = ref(false);
 
     const isImage = (url) => {
-      return /\.(jpg|jpeg|png|gif|webp)$/i.test(url)
+      return /\.(jpg|jpeg|png|gif|webp)$/i.test(url);
+    };
 
-    }
-
-    let pagination = null
+    let pagination = null;
 
     const openLightbox = (url) => {
-      lightboxImgs.value = [url]
-      lightboxIndex.value = 0
-      showLightbox.value = true
-    }
+      lightboxImgs.value = [url];
+      lightboxIndex.value = 0;
+      showLightbox.value = true;
+    };
 
     // ---- AUTH (added) ----
     const fetchCurrentUser = async () => {
       try {
-        const res = await axios.get(
-          `${import.meta.env.VITE_BACKEND_URL}/api/v1/users/me/`,
-          { withCredentials: true }
-        )
-        currentUser.value = res.data
+        const res = await axios.get(`${import.meta.env.VITE_BACKEND_URL}/api/v1/users/me/`, {
+          withCredentials: true,
+        });
+        currentUser.value = res.data;
       } catch {
-        currentUser.value = null
+        currentUser.value = null;
       }
-    }
+    };
 
     const logout = async () => {
       try {
@@ -292,194 +282,202 @@ export default {
             withCredentials: true,
             headers: { 'X-CSRFToken': Cookies.get('csrftoken') || '' },
           }
-        )
-        currentUser.value = null
+        );
+        currentUser.value = null;
       } catch (err) {
-        console.error('Logout error', err)
+        console.error('Logout error', err);
       }
-    }
+    };
 
-    const openLogin = () => { router.push({ name: "Login", query: { next: router.currentRoute.value.fullPath } }) }
-    const openRegister = () => { router.push({ name: "Register", query: { next: router.currentRoute.value.fullPath } }) }
+    const openLogin = () => {
+      router.push({ name: 'Login', query: { next: router.currentRoute.value.fullPath } });
+    };
+    const openRegister = () => {
+      router.push({ name: 'Register', query: { next: router.currentRoute.value.fullPath } });
+    };
 
     // ---- COMMENTS (your code) ----
     const fetchConfig = async () => {
       try {
         const response = await axios.get(
           `${import.meta.env.VITE_BACKEND_URL}/api/v1/config/?format=json&lang=en`
-        )
-        config.value = response.data
+        );
+        config.value = response.data;
       } catch (error) {
-        console.error('Error fetching config:', error)
+        console.error('Error fetching config:', error);
       }
-    }
+    };
 
     const initPagination = () => {
-      if (!config.value) return
+      if (!config.value) return;
       pagination = usePagination(
         `${config.value.BACKEND_URL}/api/v1/comments/`,
         config.value.PAGE_SIZE
-      )
-    }
+      );
+    };
 
     const fetchPage = async (page) => {
-      if (!pagination) return
-      loading.value = true
+      if (!pagination) return;
+      loading.value = true;
       try {
-        await pagination.fetchPage(page)
-        comments.value = pagination.items.value
-        currentPage.value = pagination.currentPage.value
-        totalPages.value = pagination.totalPages.value
-        inputPage.value = pagination.inputPage.value
+        await pagination.fetchPage(page);
+        comments.value = pagination.items.value;
+        currentPage.value = pagination.currentPage.value;
+        totalPages.value = pagination.totalPages.value;
+        inputPage.value = pagination.inputPage.value;
       } finally {
-        loading.value = false
+        loading.value = false;
       }
-    }
+    };
 
     const fetchAllPages = async () => {
-      if (!config.value) return
-      loading.value = true
+      if (!config.value) return;
+      loading.value = true;
       try {
-        const startUrl = `${config.value.BACKEND_URL}/api/v1/comments/?format=json`
-        let url = startUrl
-        const acc = []
+        const startUrl = `${config.value.BACKEND_URL}/api/v1/comments/?format=json`;
+        let url = startUrl;
+        const acc = [];
         while (url) {
-          const res = await axios.get(url)
-          const data = res.data
-          const batch = Array.isArray(data) ? data : (data.results || [])
-          acc.push(...batch)
-          url = data.next || null
+          const res = await axios.get(url);
+          const data = res.data;
+          const batch = Array.isArray(data) ? data : data.results || [];
+          acc.push(...batch);
+          url = data.next || null;
         }
-        allComments.value = acc
+        allComments.value = acc;
       } catch (e) {
-        console.error('Error fetching all pages:', e)
+        console.error('Error fetching all pages:', e);
       } finally {
-        loading.value = false
+        loading.value = false;
       }
-    }
+    };
 
     const prevPage = async () => {
       if (useClientPaging.value) {
-        if (currentPage.value > 1) currentPage.value -= 1
+        if (currentPage.value > 1) currentPage.value -= 1;
       } else {
-        await fetchPage(currentPage.value - 1)
+        await fetchPage(currentPage.value - 1);
       }
-    }
+    };
     const nextPage = async () => {
       if (useClientPaging.value) {
-        if (currentPage.value < totalPages.value) currentPage.value += 1
+        if (currentPage.value < totalPages.value) currentPage.value += 1;
       } else {
-        await fetchPage(currentPage.value + 1)
+        await fetchPage(currentPage.value + 1);
       }
-    }
+    };
     const goToPage = async (page) => {
       if (useClientPaging.value) {
-        if (page < 1) page = 1
-        if (page > totalPages.value) page = totalPages.value
-        currentPage.value = page
+        if (page < 1) page = 1;
+        if (page > totalPages.value) page = totalPages.value;
+        currentPage.value = page;
       } else {
-        await fetchPage(page)
+        await fetchPage(page);
       }
-    }
-    const goToInputPage = async () => goToPage(inputPage.value)
+    };
+    const goToInputPage = async () => goToPage(inputPage.value);
 
     const sortBy = async (field) => {
       if (sortField.value === field) {
-        sortDirection.value = sortDirection.value === 'asc' ? 'desc' : 'asc'
+        sortDirection.value = sortDirection.value === 'asc' ? 'desc' : 'asc';
       } else {
-        sortField.value = field
-        sortDirection.value = 'asc'
+        sortField.value = field;
+        sortDirection.value = 'asc';
       }
-      useClientPaging.value = true
+      useClientPaging.value = true;
       if (!allComments.value.length) {
-        await fetchAllPages()
+        await fetchAllPages();
       }
-      currentPage.value = 1
-    }
+      currentPage.value = 1;
+    };
 
-    const baseArray = computed(() => (useClientPaging.value ? allComments.value : comments.value))
+    const baseArray = computed(() => (useClientPaging.value ? allComments.value : comments.value));
 
     const sortedComments = computed(() => {
-      const arr = baseArray.value || []
-      if (!sortField.value) return arr
+      const arr = baseArray.value || [];
+      if (!sortField.value) return arr;
 
       const getVal = (item) => {
-        if (sortField.value === 'username')    return (item.user?.username || '').toLowerCase()
-        if (sortField.value === 'email')       return (item.user?.email || '').toLowerCase()
-        if (sortField.value === 'created_at')  return new Date(item.created_at).getTime()
-        return ''
-      }
+        if (sortField.value === 'username') return (item.user?.username || '').toLowerCase();
+        if (sortField.value === 'email') return (item.user?.email || '').toLowerCase();
+        if (sortField.value === 'created_at') return new Date(item.created_at).getTime();
+        return '';
+      };
 
       return [...arr].sort((a, b) => {
-        const va = getVal(a)
-        const vb = getVal(b)
-        if (va < vb) return sortDirection.value === 'asc' ? -1 : 1
-        if (va > vb) return sortDirection.value === 'asc' ? 1 : -1
-        return 0
-      })
-    })
+        const va = getVal(a);
+        const vb = getVal(b);
+        if (va < vb) return sortDirection.value === 'asc' ? -1 : 1;
+        if (va > vb) return sortDirection.value === 'asc' ? 1 : -1;
+        return 0;
+      });
+    });
 
-    const pageSize = computed(() => Number(config.value?.PAGE_SIZE || 10))
+    const pageSize = computed(() => Number(config.value?.PAGE_SIZE || 10));
 
     const visibleComments = computed(() => {
-      if (!useClientPaging.value) return sortedComments.value
-      const start = (currentPage.value - 1) * pageSize.value
-      return sortedComments.value.slice(start, start + pageSize.value)
-    })
+      if (!useClientPaging.value) return sortedComments.value;
+      const start = (currentPage.value - 1) * pageSize.value;
+      return sortedComments.value.slice(start, start + pageSize.value);
+    });
 
     watch([useClientPaging, sortedComments, pageSize], () => {
       if (useClientPaging.value) {
-        totalPages.value = Math.max(1, Math.ceil(sortedComments.value.length / pageSize.value))
-        if (currentPage.value > totalPages.value) currentPage.value = totalPages.value
+        totalPages.value = Math.max(1, Math.ceil(sortedComments.value.length / pageSize.value));
+        if (currentPage.value > totalPages.value) currentPage.value = totalPages.value;
       }
-    })
+    });
 
     const truncateText = (text) => {
-      const limit = Number(import.meta.env.VITE_COMMENT_TRUNCATE_LENGTH || 100)
-      if (!text) return ''
-      return text.length > limit ? text.slice(0, limit) + '…' : text
-    }
+      const limit = Number(import.meta.env.VITE_COMMENT_TRUNCATE_LENGTH || 100);
+      if (!text) return '';
+      return text.length > limit ? text.slice(0, limit) + '…' : text;
+    };
 
     const formatDate = (iso) => {
-      if (!iso) return ''
-      try { return new Date(iso).toLocaleString() } catch { return iso }
-    }
+      if (!iso) return '';
+      try {
+        return new Date(iso).toLocaleString();
+      } catch {
+        return iso;
+      }
+    };
 
     const goToDetail = (id) => {
-      router.push({ name: 'CommentDetail', params: { id } })
-    }
+      router.push({ name: 'CommentDetail', params: { id } });
+    };
 
     const openTxtPreview = async (url) => {
       try {
-        const res = await fetch(url)
-        txtContent.value = await res.text()
-        showTxtModal.value = true
+        const res = await fetch(url);
+        txtContent.value = await res.text();
+        showTxtModal.value = true;
       } catch (e) {
-        txtContent.value = 'Error loading file.'
-        showTxtModal.value = true
+        txtContent.value = 'Error loading file.';
+        showTxtModal.value = true;
       }
-    }
+    };
 
     const openTextPreview = (c) => {
-      commentPreviewHtml.value = c?.text || ''
-      showCommentModal.value = true
-}
+      commentPreviewHtml.value = c?.text || '';
+      showCommentModal.value = true;
+    };
 
     const onRootCreated = async () => {
-      showRootForm.value = false
+      showRootForm.value = false;
       if (useClientPaging.value) {
-        await fetchAllPages()
+        await fetchAllPages();
       } else {
-        await fetchPage(currentPage.value)
+        await fetchPage(currentPage.value);
       }
-    }
+    };
 
     onMounted(async () => {
       await fetchConfig();
       initPagination();
       await fetchPage(1);
       await fetchCurrentUser(); // auth
-    })
+    });
 
     return {
       comments,
@@ -523,9 +521,9 @@ export default {
       openLogin,
       openRegister,
       isImage,
-    }
+    };
   },
-}
+};
 </script>
 
 <style scoped>
@@ -543,7 +541,7 @@ export default {
 
 .sort-btn {
   padding: 6px 10px;
-  border: 1px solid rgba(0,0,0,0.12);
+  border: 1px solid rgba(0, 0, 0, 0.12);
   background: #fff;
   border-radius: 6px;
   cursor: pointer;
@@ -551,7 +549,7 @@ export default {
 }
 .sort-btn.active {
   border-color: #1a73e8;
-  box-shadow: 0 0 0 2px rgba(26,115,232,0.12);
+  box-shadow: 0 0 0 2px rgba(26, 115, 232, 0.12);
 }
 
 .comments-table {
@@ -562,7 +560,6 @@ export default {
 }
 
 .comments-table thead th,
-
 .comments-table td {
   text-align: left;
   vertical-align: middle;
@@ -570,46 +567,65 @@ export default {
 
 .comments-table .row {
   background: #fff;
-  border: 1px solid rgba(0,0,0,0.12);
+  border: 1px solid rgba(0, 0, 0, 0.12);
   box-shadow:
     inset 4px 0 0 #a8c6f7,
-    0 1px 2px rgba(0,0,0,0.08);
-  transition: transform 0.1s, box-shadow 0.1s, background 0.2s;
+    0 1px 2px rgba(0, 0, 0, 0.08);
+  transition:
+    transform 0.1s,
+    box-shadow 0.1s,
+    background 0.2s;
   cursor: pointer;
 }
 .comments-table .row:hover {
   transform: translateY(-1px);
   box-shadow:
     inset 4px 0 0 #a8c6f7,
-    0 2px 4px rgba(0,0,0,0.15);
+    0 2px 4px rgba(0, 0, 0, 0.15);
   background: #f9fbff;
 }
 
 .comments-table .cell {
   padding: 10px;
-  border-top: 1px solid rgba(0,0,0,0.06);
-  border-bottom: 1px solid rgba(0,0,0,0.06);
+  border-top: 1px solid rgba(0, 0, 0, 0.06);
+  border-bottom: 1px solid rgba(0, 0, 0, 0.06);
   background: transparent;
   box-sizing: border-box;
 }
 
-.col-avatar { width: 60px; }
-.col-user   { width: 180px; }
-.col-email  { width: 240px; }
-.col-date   { width: 180px; }
-.col-text   { width: auto; }
-.col-file { width: 100px; }
-.col-replies{ width: 90px; text-align: center; }
+.col-avatar {
+  width: 60px;
+}
+.col-user {
+  width: 180px;
+}
+.col-email {
+  width: 240px;
+}
+.col-date {
+  width: 180px;
+}
+.col-text {
+  width: auto;
+}
+.col-file {
+  width: 100px;
+}
+.col-replies {
+  width: 90px;
+  text-align: center;
+}
 
-
-.avatar-cell { text-align: center; }
+.avatar-cell {
+  text-align: center;
+}
 
 .avatar {
   border-radius: 50%;
   object-fit: cover;
   width: 40px;
   height: 40px;
-  box-shadow: 0 0 0 3px rgba(255,255,255,1);
+  box-shadow: 0 0 0 3px rgba(255, 255, 255, 1);
 }
 
 .meta-top {
@@ -618,7 +634,9 @@ export default {
   align-items: center;
   font-size: 14px;
 }
-.username { font-weight: 700; }
+.username {
+  font-weight: 700;
+}
 
 .email-cell .email {
   color: #555;
@@ -627,19 +645,20 @@ export default {
   text-overflow: ellipsis;
 }
 
-.created { color: #666; }
+.created {
+  color: #666;
+}
 
 .file-cell {
   text-align: center;
 }
-
 
 .file-thumb {
   max-width: 80px;
   max-height: 60px;
   object-fit: cover;
   border-radius: 4px;
-  box-shadow: 0 1px 2px rgba(0,0,0,0.2);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
 }
 
 .file-txt {
@@ -663,7 +682,9 @@ export default {
   white-space: nowrap;
 }
 
-.replies-cell { text-align: center; }
+.replies-cell {
+  text-align: center;
+}
 .replies-pill {
   display: inline-block;
   background: #f0f4ff;
@@ -687,7 +708,7 @@ export default {
 }
 .pagination button {
   padding: 6px 10px;
-  border: 1px solid rgba(0,0,0,0.12);
+  border: 1px solid rgba(0, 0, 0, 0.12);
   background: #fff;
   border-radius: 6px;
   cursor: pointer;
@@ -699,7 +720,7 @@ export default {
 .goto input {
   width: 60px;
   padding: 4px 6px;
-  border: 1px solid rgba(0,0,0,0.2);
+  border: 1px solid rgba(0, 0, 0, 0.2);
   border-radius: 6px;
 }
 
@@ -732,8 +753,12 @@ export default {
   cursor: pointer;
   font-size: 14px;
 }
-.auth-btn:hover { background: #1669c1; }
-.auth-username { font-weight: 600; }
+.auth-btn:hover {
+  background: #1669c1;
+}
+.auth-username {
+  font-weight: 600;
+}
 
 .thumb img {
   width: 100px;
@@ -741,7 +766,7 @@ export default {
   margin: 5px;
   cursor: pointer;
   border-radius: 6px;
-  box-shadow: 0 2px 6px rgba(0,0,0,0.2);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
   transition: transform 0.2s;
 }
 .thumb img:hover {
@@ -755,7 +780,7 @@ export default {
   left: 0;
   width: 100%;
   height: 100%;
-  background: rgba(0,0,0,0.65);
+  background: rgba(0, 0, 0, 0.65);
   display: flex;
   justify-content: center;
   align-items: center;
@@ -782,26 +807,26 @@ export default {
 
   /* Add root comment */
   .add-root {
-  margin: 12px 0;
-}
-.add-btn {
-  padding: 8px 14px;
-  background: #1a73e8;
-  color: white;
-  border: none;
-  border-radius: 6px;
-  cursor: pointer;
-  font-size: 14px;
-}
-.add-btn:hover {
-  background: #1669c1;
-}
-.root-form {
-  margin: 16px 0;
-  padding: 12px;
-  border: 1px solid rgba(0,0,0,0.1);
-  border-radius: 6px;
-  background: #fafafa;
-}
+    margin: 12px 0;
+  }
+  .add-btn {
+    padding: 8px 14px;
+    background: #1a73e8;
+    color: white;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 14px;
+  }
+  .add-btn:hover {
+    background: #1669c1;
+  }
+  .root-form {
+    margin: 16px 0;
+    padding: 12px;
+    border: 1px solid rgba(0, 0, 0, 0.1);
+    border-radius: 6px;
+    background: #fafafa;
+  }
 }
 </style>

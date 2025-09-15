@@ -4,39 +4,22 @@
     <form @submit.prevent="handleLogin">
       <div class="form-group">
         <label for="username">Username or Email</label>
-        <input
-          id="username"
-          v-model="form.username"
-          type="text"
-          name="username"
-          required
-        />
+        <input id="username" v-model="form.username" type="text" name="username" required />
       </div>
 
       <div class="form-group">
         <label for="password">Password</label>
-        <input
-          id="password"
-          v-model="form.password"
-          type="password"
-          name="password"
-          required
-        />
+        <input id="password" v-model="form.password" type="password" name="password" required />
       </div>
 
       <!-- Google reCAPTCHA v2 -->
-      <div
-        class="g-recaptcha"
-        :data-sitekey="recaptchaSiteKey"
-      ></div>
+      <div class="g-recaptcha" :data-sitekey="recaptchaSiteKey"></div>
 
       <div class="button-row">
         <button type="submit" :disabled="loading">
-          {{ loading ? "Signing in..." : "Sign in" }}
+          {{ loading ? 'Signing in...' : 'Sign in' }}
         </button>
-        <button type="button" @click="cancelLogin" class="cancel-btn">
-          Cancel
-        </button>
+        <button type="button" @click="cancelLogin" class="cancel-btn">Cancel</button>
       </div>
 
       <p v-if="error" class="error">{{ error }}</p>
@@ -46,10 +29,10 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from "vue";
-import { useRouter } from "vue-router";
-import axios from "axios";
-import Cookies from "js-cookie";
+import { ref, onMounted } from 'vue';
+import { useRouter } from 'vue-router';
+import axios from 'axios';
+import Cookies from 'js-cookie';
 
 const router = useRouter();
 
@@ -57,38 +40,35 @@ const VITE_BACKEND_URL = import.meta.env.VITE_BACKEND_URL;
 const recaptchaSiteKey = import.meta.env.VITE_RECAPTCHA_SITE_KEY;
 
 const form = ref({
-  username: "",
-  password: "",
+  username: '',
+  password: '',
 });
 
 const loading = ref(false);
-const error = ref("");
+const error = ref('');
 const success = ref(false);
 let recaptchaWidgetId = null;
 
 onMounted(() => {
   if (window.grecaptcha) {
     // render reCAPTCHA explicitly
-    recaptchaWidgetId = window.grecaptcha.render(
-      document.querySelector(".g-recaptcha"),
-      {
-        sitekey: recaptchaSiteKey,
-      }
-    );
+    recaptchaWidgetId = window.grecaptcha.render(document.querySelector('.g-recaptcha'), {
+      sitekey: recaptchaSiteKey,
+    });
   }
 });
 
 const handleLogin = async () => {
-  error.value = "";
+  error.value = '';
   success.value = false;
   loading.value = true;
 
   try {
-    const csrftoken = Cookies.get("csrftoken");
-    if (!csrftoken) throw new Error("CSRF token missing. Refresh the page.");
+    const csrftoken = Cookies.get('csrftoken');
+    if (!csrftoken) throw new Error('CSRF token missing. Refresh the page.');
 
     const recaptchaToken = window.grecaptcha.getResponse(recaptchaWidgetId);
-    if (!recaptchaToken) throw new Error("Please complete the reCAPTCHA.");
+    if (!recaptchaToken) throw new Error('Please complete the reCAPTCHA.');
 
     const formData = {
       username: form.value.username,
@@ -97,37 +77,38 @@ const handleLogin = async () => {
     };
 
     await axios.post(`${VITE_BACKEND_URL}/api/v1/users/login/`, formData, {
-      headers: { "X-CSRFToken": csrftoken },
+      headers: { 'X-CSRFToken': csrftoken },
       withCredentials: true,
     });
 
     success.value = true;
     try {
       const me = await axios.get(`${VITE_BACKEND_URL}/api/v1/users/me/`, { withCredentials: true });
-      localStorage.setItem("currentUser", JSON.stringify(me.data));
-    } catch (e) { console.error("fetch me failed", e) }
-    form.value.username = "";
-    form.value.password = "";
+      localStorage.setItem('currentUser', JSON.stringify(me.data));
+    } catch (e) {
+      console.error('fetch me failed', e);
+    }
+    form.value.username = '';
+    form.value.password = '';
     window.grecaptcha.reset(recaptchaWidgetId);
 
-    const redirectTo = router.currentRoute.value.query.next || "/";
+    const redirectTo = router.currentRoute.value.query.next || '/';
     setTimeout(() => {
       router.push(redirectTo);
     }, 800);
-
   } catch (err) {
     error.value =
       err.response?.data?.detail ||
       err.response?.data?.non_field_errors?.[0] ||
       err.message ||
-      "Login failed";
+      'Login failed';
   } finally {
     loading.value = false;
   }
 };
 
 function cancelLogin() {
-  router.push("/");
+  router.push('/');
 }
 </script>
 
@@ -177,7 +158,7 @@ button:disabled {
   cursor: not-allowed;
 }
 
-button[type="submit"] {
+button[type='submit'] {
   background: #1976d2;
 }
 

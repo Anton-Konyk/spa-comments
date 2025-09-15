@@ -5,10 +5,7 @@
     <div v-if="loading">Loading...</div>
     <div v-else-if="error">{{ error }}</div>
     <div v-else>
-      <CommentNode
-        :comment="comment"
-        @reply="handleReply"
-      />
+      <CommentNode :comment="comment" @reply="handleReply" />
 
       <CommentForm
         v-if="replyToId"
@@ -25,12 +22,12 @@
 </template>
 
 <script setup>
-import { ref, onMounted, nextTick } from "vue";
-import { useRoute, useRouter } from "vue-router";
-import axios from "axios";
-import Cookies from "js-cookie";
-import CommentNode from "./CommentNode.vue";
-import CommentForm from "./CommentForm.vue";
+import { ref, onMounted, nextTick } from 'vue';
+import { useRoute, useRouter } from 'vue-router';
+import axios from 'axios';
+import Cookies from 'js-cookie';
+import CommentNode from './CommentNode.vue';
+import CommentForm from './CommentForm.vue';
 
 const route = useRoute();
 const router = useRouter();
@@ -38,10 +35,10 @@ const router = useRouter();
 const comment = ref(null);
 const currentUser = ref(null);
 const replyToId = ref(null);
-const replyToText = ref("");
-const replyToAuthor = ref("");
+const replyToText = ref('');
+const replyToAuthor = ref('');
 const loading = ref(true);
-const error = ref("");
+const error = ref('');
 const replyFormEl = ref(null);
 
 const fetchComment = async () => {
@@ -52,7 +49,7 @@ const fetchComment = async () => {
     );
     comment.value = response.data;
   } catch {
-    error.value = "Failed to load comment.";
+    error.value = 'Failed to load comment.';
   } finally {
     loading.value = false;
   }
@@ -60,15 +57,12 @@ const fetchComment = async () => {
 
 const fetchCurrentUser = async () => {
   try {
-    const response = await axios.get(
-      `${import.meta.env.VITE_BACKEND_URL}/api/v1/users/me/`,
-      {
-        headers: {
-          "X-CSRFToken": Cookies.get("csrftoken"),
-        },
-        withCredentials: true,
-      }
-    );
+    const response = await axios.get(`${import.meta.env.VITE_BACKEND_URL}/api/v1/users/me/`, {
+      headers: {
+        'X-CSRFToken': Cookies.get('csrftoken'),
+      },
+      withCredentials: true,
+    });
     currentUser.value = response.data;
   } catch {
     currentUser.value = null;
@@ -79,27 +73,27 @@ const handleReply = async (payload) => {
   // payload { id, text, authorName} from CommentNode.vue
   replyToId.value = payload.id;
   replyToText.value = payload.text;
-  replyToAuthor.value = payload.authorName
+  replyToAuthor.value = payload.authorName;
 
   await nextTick();
-  replyFormEl.value?.$el.scrollIntoView({ behavior: "smooth", block: "center" });
+  replyFormEl.value?.$el.scrollIntoView({ behavior: 'smooth', block: 'center' });
 };
 
 const cancelReply = () => {
   replyToId.value = null;
-  replyToText.value = "";
-  replyToAuthor.value = "";
+  replyToText.value = '';
+  replyToAuthor.value = '';
 };
 
 const refreshComments = async () => {
   await fetchComment();
   replyToId.value = null;
-  replyToText.value = "";
-  replyToAuthor.value = "";
+  replyToText.value = '';
+  replyToAuthor.value = '';
 };
 
 const goBack = () => {
-  router.push({ name: "CommentList" });
+  router.push({ name: 'CommentList' });
 };
 
 onMounted(() => {

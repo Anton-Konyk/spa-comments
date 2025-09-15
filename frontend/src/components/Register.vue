@@ -33,13 +33,11 @@
 
       <!-- Submit -->
       <button type="submit" :disabled="submitting">
-        {{ submitting ? "Registering..." : "Register" }}
+        {{ submitting ? 'Registering...' : 'Register' }}
       </button>
 
       <!-- Back -->
-      <button type="button" class="back-btn" @click="goBack">
-        Back
-      </button>
+      <button type="button" class="back-btn" @click="goBack">Back</button>
     </form>
 
     <p v-if="errorMessage" class="error">{{ errorMessage }}</p>
@@ -48,12 +46,12 @@
 </template>
 
 <script>
-import axios from "axios";
-import Cookies from "js-cookie";
-import { useRouter } from "vue-router";
+import axios from 'axios';
+import Cookies from 'js-cookie';
+import { useRouter } from 'vue-router';
 
 export default {
-  name: "Register",
+  name: 'Register',
   setup() {
     const router = useRouter();
     return { router };
@@ -61,14 +59,14 @@ export default {
   data() {
     return {
       form: {
-        username: "",
-        email: "",
-        password: "",
+        username: '',
+        email: '',
+        password: '',
         avatar: null,
       },
       submitting: false,
-      errorMessage: "",
-      successMessage: "",
+      errorMessage: '',
+      successMessage: '',
       recaptchaWidgetId: null,
       recaptchaSiteKey: import.meta.env.VITE_RECAPTCHA_SITE_KEY,
     };
@@ -83,18 +81,18 @@ export default {
       const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
       if (!USERNAME_REGEX.test(this.form.username)) {
-        this.errorMessage = "Username may contain only Latin letters and digits.";
+        this.errorMessage = 'Username may contain only Latin letters and digits.';
         return false;
       }
       if (!EMAIL_REGEX.test(this.form.email)) {
-        this.errorMessage = "Please enter a valid email address.";
+        this.errorMessage = 'Please enter a valid email address.';
         return false;
       }
       return true;
     },
     async handleRegister() {
-      this.errorMessage = "";
-      this.successMessage = "";
+      this.errorMessage = '';
+      this.successMessage = '';
 
       if (!this.validateForm()) return;
 
@@ -102,25 +100,25 @@ export default {
 
       const token = window.grecaptcha.getResponse(this.recaptchaWidgetId);
       if (!token) {
-        this.errorMessage = "Please complete the reCAPTCHA.";
+        this.errorMessage = 'Please complete the reCAPTCHA.';
         this.submitting = false;
         return;
       }
 
       try {
         const formData = new FormData();
-        formData.append("username", this.form.username);
-        formData.append("email", this.form.email);
-        formData.append("password", this.form.password);
-        if (this.form.avatar) formData.append("avatar", this.form.avatar);
-        formData.append("recaptcha_token", token);
+        formData.append('username', this.form.username);
+        formData.append('email', this.form.email);
+        formData.append('password', this.form.password);
+        if (this.form.avatar) formData.append('avatar', this.form.avatar);
+        formData.append('recaptcha_token', token);
 
-        const csrfToken = Cookies.get("csrftoken");
+        const csrfToken = Cookies.get('csrftoken');
         const response = await axios.post(
           `${import.meta.env.VITE_BACKEND_URL}/api/v1/users/register/`,
           formData,
           {
-            headers: { "X-CSRFToken": csrfToken },
+            headers: { 'X-CSRFToken': csrfToken },
             withCredentials: true,
           }
         );
@@ -128,27 +126,26 @@ export default {
         this.successMessage = `Welcome, ${response.data.username}! Registration successful. Please sign in.`;
 
         // Reset form + recaptcha
-        this.form = { username: "", email: "", password: "", avatar: null };
+        this.form = { username: '', email: '', password: '', avatar: null };
         window.grecaptcha.reset(this.recaptchaWidgetId);
         setTimeout(() => {
-          const next = this.$route.query.next || "/";
-          this.router.replace({ name: "Login", query: { next, registered: 1 } });
-        }, 2000)
+          const next = this.$route.query.next || '/';
+          this.router.replace({ name: 'Login', query: { next, registered: 1 } });
+        }, 2000);
       } catch (error) {
         if (error.response) {
-          this.errorMessage = Object.values(error.response.data).flat().join(" ");
+          this.errorMessage = Object.values(error.response.data).flat().join(' ');
         } else if (error.request) {
-          this.errorMessage = "No response from server.";
+          this.errorMessage = 'No response from server.';
         } else {
-          this.errorMessage = "Unexpected error.";
+          this.errorMessage = 'Unexpected error.';
         }
       } finally {
         this.submitting = false;
       }
-
     },
     goBack() {
-      this.router.push("/");
+      this.router.push('/');
     },
   },
   mounted() {
@@ -157,7 +154,7 @@ export default {
         sitekey: this.recaptchaSiteKey,
       });
     } else {
-      console.error("reCAPTCHA script not loaded!");
+      console.error('reCAPTCHA script not loaded!');
     }
   },
 };
@@ -182,10 +179,10 @@ export default {
   display: flex;
   flex-direction: column;
 }
-input[type="text"],
-input[type="email"],
-input[type="password"],
-input[type="file"] {
+input[type='text'],
+input[type='email'],
+input[type='password'],
+input[type='file'] {
   padding: 8px;
   border: 1px solid #ccc;
   border-radius: 6px;
