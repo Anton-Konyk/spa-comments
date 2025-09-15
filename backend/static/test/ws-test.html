@@ -1,0 +1,12 @@
+<!doctype html>
+<meta charset="utf-8">
+<h3>WS test</h3>
+<pre id="log"></pre>
+<script>
+  const log = (...a) => (document.getElementById('log').textContent += a.join(' ')+'\n');
+  const ws = new WebSocket('ws://localhost:8000/ws/comments/');
+  ws.onopen = () => log('WS open');
+  ws.onmessage = (e) => log('WS message:', e.data);
+  ws.onerror = (e) => log('WS error:', e.message || e);
+  ws.onclose = () => log('WS close');
+</script>

@@ -49,6 +49,10 @@ RECAPTCHA_VERIFY_URL = os.getenv("RECAPTCHA_VERIFY_URL")
 RECAPTCHA_SITE_KEY = os.getenv("RECAPTCHA_SITE_KEY")
 RECAPTCHA_SECRET_KEY = os.getenv("RECAPTCHA_SECRET_KEY")
 
+ASGI_APPLICATION = "spa_comments.asgi.application"
+
+REDIS_URL = os.getenv("REDIS_URL")
+
 # Application definition
 
 INSTALLED_APPS = [
@@ -58,10 +62,12 @@ INSTALLED_APPS = [
     "django.contrib.sessions",
     "django.contrib.messages",
     "django.contrib.staticfiles",
+    "rest_framework",
+    "drf_spectacular",
     "corsheaders",
+    "channels",
     "users",
     "comments",
-    "drf_spectacular",
 ]
 
 AUTH_USER_MODEL = "users.SpaUser"
@@ -179,6 +185,8 @@ USE_TZ = True
 
 STATIC_URL = "static/"
 
+STATIC_ROOT = ROOT_DIR / "staticfiles"
+
 MEDIA_ROOT = BASE_DIR / "media"
 
 MEDIA_URL = "/media/"
@@ -189,3 +197,25 @@ MEDIA_URL = "/media/"
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
 mimetypes.add_type("image/webp", ".webp", True)
+
+if REDIS_URL:
+    CHANNEL_LAYERS = {
+        "default": {
+            "BACKEND": "channels_redis.core.RedisChannelLayer",
+            "CONFIG": {"hosts": [REDIS_URL]},
+        }
+    }
+else:
+    # locally without redis
+    CHANNEL_LAYERS = {
+        "default": {
+            "BACKEND": "channels.layers.InMemoryChannelLayer",
+        }
+    }
+
+# Security for production
+if not DEBUG:
+    SESSION_COOKIE_SECURE = True
+    CSRF_COOKIE_SECURE = True
+    SECURE_SSL_REDIRECT = os.getenv("SECURE_SSL_REDIRECT", "False") == "True"
+    SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
