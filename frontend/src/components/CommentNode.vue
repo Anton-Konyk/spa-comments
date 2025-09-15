@@ -1,5 +1,11 @@
 <template>
-  <div class="comment-node" :id="`comment-${comment.id}`" :level="level" :style="containerStyle">
+  <div
+    class="comment-node"
+    :id="`comment-${comment.id}`"
+    :level="level"
+    :style="containerStyle"
+    :class="{ highlighted: isHighlighted }"
+  >
     <!-- Header: avatar + meta + actions -->
     <div class="comment-header">
       <div class="header-left">
@@ -50,6 +56,7 @@
         :key="reply.id"
         :comment="reply"
         :level="level + 1"
+        :highlight-map="highlightMap"
         @reply="$emit('reply', $event)"
       />
     </div>
@@ -75,14 +82,13 @@
 <script>
 /**
  * CommentNode.vue
- * - Shows a single comment node with avatar, meta and actions.
- * - Left side: truncated plain-text preview (safe to click).
- * - On click, opens a modal that renders FULL sanitized HTML (whitelist).
- * - Right side (optional): image attachment preview with lightbox.
+ * - Renders one comment node with avatar/meta, truncated text preview and image thumb.
+ * - On preview click, opens a modal with FULL sanitized HTML (whitelist).
+ * - Accepts `highlightMap` to highlight a node for a short time (10s).
  *
- * Sanitization whitelist (must match CommentForm.vue rules):
+ * Sanitization policy (aligned with CommentForm.vue):
  *   Allowed tags: <a href="" title=""></a>, <code></code>, <i></i>, <strong></strong>
- *   Allowed attrs for <a>: href, title (href must be http(s) or mailto).
+ *   Allowed attrs on <a>: href, title; href must be http(s) or mailto.
  */
 import { defineComponent } from 'vue';
 import VueEasyLightbox from 'vue-easy-lightbox';
@@ -90,14 +96,11 @@ import DOMPurify from 'dompurify';
 
 const ALLOWED_TAGS = ['a', 'code', 'i', 'strong'];
 const ALLOWED_ATTRS = ['href', 'title'];
-
-// DOMPurify config — only what we need (kept consistent with CommentForm.vue)
 const SANITIZE_OPTS = {
   ALLOWED_TAGS: ALLOWED_TAGS,
   ALLOWED_ATTR: ALLOWED_ATTRS,
   ALLOW_DATA_ATTR: false,
   ALLOW_ARIA_ATTR: false,
-  // Accept only http(s) or mailto links inside <a>
   ALLOWED_URI_REGEXP: /^(?:https?:|mailto:)/i,
 };
 
@@ -107,6 +110,7 @@ export default defineComponent({
   props: {
     comment: { type: Object, required: true },
     level: { type: Number, default: 0 },
+    highlightMap: { type: Object, default: null }, // { [id]: true }
   },
   data() {
     return {
@@ -114,7 +118,6 @@ export default defineComponent({
       lightboxImgs: [],
       lightboxIndex: 0,
 
-      // Full-text modal
       showTextModal: false,
       sanitizedPreviewHtml: '',
     };
@@ -127,19 +130,18 @@ export default defineComponent({
         marginTop: '12px',
       };
     },
-
-    // Max length for inline preview (plain text)
     truncateLen() {
       return Number(import.meta.env.VITE_COMMENT_TRUNCATE_LENGTH || 100);
     },
-
-    // Build a safe, truncated plain-text preview (no HTML here)
     previewText() {
       const raw = this.comment?.text || '';
       const div = document.createElement('div');
       div.innerHTML = raw;
       const plain = div.textContent || div.innerText || '';
       return plain.length > this.truncateLen ? plain.slice(0, this.truncateLen) + '…' : plain;
+    },
+    isHighlighted() {
+      return !!(this.highlightMap && this.comment && this.highlightMap[this.comment.id]);
     },
   },
   methods: {
@@ -151,7 +153,6 @@ export default defineComponent({
         return iso;
       }
     },
-    // Emit only id + text + authorName (safe)
     emitReply() {
       this.$emit('reply', {
         id: this.comment.id,
@@ -167,7 +168,6 @@ export default defineComponent({
       this.lightboxIndex = 0;
       this.showLightbox = true;
     },
-    // Open sanitized full text in a modal (no page reload)
     openTextPreview() {
       const raw = this.comment?.text || '';
       this.sanitizedPreviewHtml = DOMPurify.sanitize(raw, SANITIZE_OPTS);
@@ -261,20 +261,16 @@ export default defineComponent({
   color: #222;
   line-height: 1.45;
 }
-
-/* Text on the left + preview on the right */
 .body-row {
   display: flex;
   align-items: flex-start;
   gap: 12px;
 }
-
 .body-text {
   flex: 1 1 auto;
   min-width: 0;
   cursor: pointer;
 }
-
 .body-attachment {
   flex: 0 0 120px;
 }
@@ -300,7 +296,7 @@ export default defineComponent({
   margin-top: 12px;
 }
 
-/* Softer pastel colors per level */
+/* Pastel per level */
 .comment-node[level='0'] {
   --level-color: #a8c6f7;
   background: #ffffff;
@@ -322,7 +318,26 @@ export default defineComponent({
   background: #fcf8ff;
 }
 
-/* Modal for sanitized full-text preview (same look & feel as list) */
+/* 10s pulse highlight (2s * 5 iterations) */
+@keyframes pulseGlow {
+  0%,
+  100% {
+    box-shadow:
+      inset 0 0 0 3px #ffe58f,
+      0 1px 2px rgba(0, 0, 0, 0.08);
+  }
+  50% {
+    box-shadow:
+      inset 0 0 0 3px #ffd666,
+      0 4px 10px rgba(0, 0, 0, 0.18);
+  }
+}
+.comment-node.highlighted {
+  animation: pulseGlow 2s ease-in-out 5;
+  background-image: linear-gradient(0deg, rgba(255, 248, 196, 0.45), rgba(255, 248, 196, 0.45));
+}
+
+/* Modal for sanitized full-text preview */
 .txt-modal {
   position: fixed;
   top: 0;
