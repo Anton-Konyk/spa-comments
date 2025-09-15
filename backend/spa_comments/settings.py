@@ -11,7 +11,6 @@ https://docs.djangoproject.com/en/5.2/ref/settings/
 """
 import mimetypes
 import os
-import corsheaders
 from pathlib import Path
 from dotenv import load_dotenv
 
@@ -37,7 +36,8 @@ CORS_ALLOWED_ORIGINS = os.getenv("CORS_ALLOWED_ORIGINS", "").split(",")
 
 CORS_ALLOW_CREDENTIALS = True
 
-CSRF_TRUSTED_ORIGINS = [origin.strip() for origin in CORS_ALLOWED_ORIGINS if origin.strip()]
+CSRF_TRUSTED_ORIGINS = \
+    [origin.strip() for origin in CORS_ALLOWED_ORIGINS if origin.strip()]
 
 PAGE_SIZE = int(os.getenv("PAGE_SIZE", 2))
 
@@ -113,16 +113,24 @@ DATABASES = {
 
 AUTH_PASSWORD_VALIDATORS = [
     {
-        "NAME": "django.contrib.auth.password_validation.UserAttributeSimilarityValidator",
+        "NAME":
+            "django.contrib.auth.password_validation."
+            "UserAttributeSimilarityValidator",
     },
     {
-        "NAME": "django.contrib.auth.password_validation.MinimumLengthValidator",
+        "NAME":
+            "django.contrib.auth.password_validation."
+            "MinimumLengthValidator",
     },
     {
-        "NAME": "django.contrib.auth.password_validation.CommonPasswordValidator",
+        "NAME":
+            "django.contrib.auth.password_validation."
+            "CommonPasswordValidator",
     },
     {
-        "NAME": "django.contrib.auth.password_validation.NumericPasswordValidator",
+        "NAME":
+            "django.contrib.auth.password_validation."
+            "NumericPasswordValidator",
     },
 ]
 
@@ -131,9 +139,10 @@ REST_FRAMEWORK = {
         "rest_framework.throttling.AnonRateThrottle",
         "rest_framework.throttling.UserRateThrottle",
     ],
-    # "DEFAULT_THROTTLE_RATES": {"anon": "100/day", "user": "1000/day"},
+    "DEFAULT_THROTTLE_RATES": {"anon": "100/day", "user": "1000/day"},
     "DEFAULT_SCHEMA_CLASS": "drf_spectacular.openapi.AutoSchema",
-    "DEFAULT_PAGINATION_CLASS": "rest_framework.pagination.PageNumberPagination",
+    "DEFAULT_PAGINATION_CLASS":
+        "rest_framework.pagination.PageNumberPagination",
     "PAGE_SIZE": PAGE_SIZE,
     "DEFAULT_FILTER_BACKENDS": [
         "rest_framework.filters.OrderingFilter",

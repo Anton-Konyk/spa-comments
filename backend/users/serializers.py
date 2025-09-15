@@ -40,7 +40,10 @@ class LoginSerializer(serializers.Serializer):
         if not user:
             try:
                 user_obj = User.objects.get(email=username_or_email.lower())
-                user = authenticate(username=user_obj.username, password=password)
+                user = authenticate(
+                    username=user_obj.username,
+                    password=password
+                )
             except User.DoesNotExist:
                 pass
 
@@ -54,7 +57,10 @@ class LoginSerializer(serializers.Serializer):
 
 
 class RegisterUserSerializer(serializers.ModelSerializer):
-    password = serializers.CharField(write_only=True, validators=[validate_password])
+    password = serializers.CharField(
+        write_only=True,
+        validators=[validate_password]
+    )
     recaptcha_token = serializers.CharField(write_only=True)
     email = serializers.EmailField(
         required=True,

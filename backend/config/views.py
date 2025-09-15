@@ -10,7 +10,8 @@ class AppConfigView(APIView):
 
     @extend_schema(
         summary="Retrieve frontend configuration",
-        description="Returns frontend settings like BACKEND_URL and PAGE_SIZE",
+        description="Returns frontend settings "
+                    "like BACKEND_URL and PAGE_SIZE",
         parameters=[
             OpenApiParameter(
                 name='format',
@@ -31,8 +32,14 @@ class AppConfigView(APIView):
     )
     def get(self, request):
         data = {
-            "BACKEND_URL": getattr(settings, "FRONTEND_BACKEND_URL", "http://localhost:8000"),
-            "PAGE_SIZE": getattr(settings, "PAGE_SIZE", 10),
+            "BACKEND_URL": getattr(
+                settings,
+                "FRONTEND_BACKEND_URL",
+                "http://localhost:8000"),
+            "PAGE_SIZE": getattr(
+                settings,
+                "PAGE_SIZE",
+                10),
         }
         serializer = AppConfigSerializer(data)
         return Response(serializer.data)

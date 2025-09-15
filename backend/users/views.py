@@ -1,10 +1,18 @@
 from django.contrib.auth import login, logout
 from rest_framework import status
-from rest_framework.generics import CreateAPIView, GenericAPIView, RetrieveAPIView
+from rest_framework.generics import (
+    CreateAPIView,
+    GenericAPIView,
+    RetrieveAPIView
+)
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 
-from .serializers import SpaUserSerializer, RegisterUserSerializer, LoginSerializer
+from .serializers import (
+    SpaUserSerializer,
+    RegisterUserSerializer,
+    LoginSerializer
+)
 
 
 class RegisterUserView(CreateAPIView):
@@ -16,7 +24,10 @@ class RegisterUserView(CreateAPIView):
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         user = serializer.save()
-        return Response(SpaUserSerializer(user).data, status=status.HTTP_201_CREATED)
+        return Response(
+            SpaUserSerializer(user).data,
+            status=status.HTTP_201_CREATED
+        )
 
 
 class LoginUserView(GenericAPIView):
@@ -29,7 +40,10 @@ class LoginUserView(GenericAPIView):
         serializer.is_valid(raise_exception=True)
         user = serializer.validated_data["user"]
         login(request, user)
-        return Response(SpaUserSerializer(user).data, status=status.HTTP_200_OK)
+        return Response(
+            SpaUserSerializer(user).data,
+            status=status.HTTP_200_OK
+        )
 
 
 class LogoutUserView(GenericAPIView):
@@ -38,7 +52,10 @@ class LogoutUserView(GenericAPIView):
 
     def post(self, request, *args, **kwargs):
         logout(request)
-        return Response({"detail": "Successfully logged out."}, status=status.HTTP_200_OK)
+        return Response(
+            {"detail": "Successfully logged out."},
+            status=status.HTTP_200_OK
+        )
 
 
 class CurrentUserView(RetrieveAPIView):

@@ -4,9 +4,21 @@ from .models import Comment
 
 @admin.register(Comment)
 class CommentAdmin(admin.ModelAdmin):
-    list_display = ("user", "short_text", "created_at", "is_reply", "parent_preview", "file")
+    list_display = (
+        "user",
+        "short_text",
+        "created_at",
+        "is_reply",
+        "parent_preview",
+        "file"
+    )
     list_filter = ("created_at",)
-    search_fields = ("text", "user__username", "parent__text", "parent__user__username")
+    search_fields = (
+        "text",
+        "user__username",
+        "parent__text",
+        "parent__user__username"
+    )
     ordering = ("-created_at",)
     raw_id_fields = ("user", "parent")
 

@@ -56,7 +56,9 @@ def to_valid_xhtml_fragment(cleaned: str) -> str:
 
 class Comment(models.Model):
     user = models.ForeignKey(
-        settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="comments"
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="comments"
     )
     created_at = models.DateTimeField(auto_now_add=True)
     home_page = models.URLField(blank=True, null=True)
@@ -94,7 +96,7 @@ class Comment(models.Model):
                 self.file.seek(0)
                 sample = self.file.read(1024)  # read first 1KB
                 if isinstance(sample, bytes):
-                    sample.decode("utf-8")  # raises UnicodeDecodeError if not text
+                    sample.decode("utf-8")
             except UnicodeDecodeError:
                 raise ValidationError("TXT files must be valid UTF-8 text.")
             finally:
@@ -112,14 +114,18 @@ class Comment(models.Model):
 
         self.text = bleach.linkify(
             self.text,
-            callbacks=[bleach.callbacks.nofollow, bleach.callbacks.target_blank]
+            callbacks=[
+                bleach.callbacks.nofollow,
+                bleach.callbacks.target_blank
+            ]
         )
 
         self.text = to_valid_xhtml_fragment(self.text)
 
         super().save(*args, **kwargs)
 
-        if self.file and self.file.name.lower().endswith((".jpg", ".jpeg", ".png", ".gif")):
+        if self.file and self.file.name.lower().endswith((
+                ".jpg", ".jpeg", ".png", ".gif")):
             file_path = self.file.path
             ext = os.path.splitext(self.file.name)[1].lower()
 
@@ -127,7 +133,8 @@ class Comment(models.Model):
                 return
 
             with Image.open(file_path) as img:
-                if img.width > IMAGE_RESIZE_WIDTH or img.height > IMAGE_RESIZE_HEIGHT:
+                if (img.width > IMAGE_RESIZE_WIDTH or
+                        img.height > IMAGE_RESIZE_HEIGHT):
                     img.thumbnail((IMAGE_RESIZE_WIDTH, IMAGE_RESIZE_HEIGHT))
 
                     # Map extension to Pillow format explicitly

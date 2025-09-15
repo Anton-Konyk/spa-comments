@@ -19,7 +19,9 @@ class CommentListSerializer(serializers.ModelSerializer):
     """Serializer for a list of comments with nested replies"""
     user = SpaUserSerializer(read_only=True)
     is_reply = serializers.SerializerMethodField()
-    replies_count = serializers.SerializerMethodField(method_name="get_replies_count")
+    replies_count = serializers.SerializerMethodField(
+        method_name="get_replies_count"
+    )
 
     class Meta:
         model = Comment
@@ -66,7 +68,9 @@ class CommentCreateSerializer(serializers.ModelSerializer):
         result = response.json()
 
         if not result.get("success"):
-            raise serializers.ValidationError({"recaptcha": "reCAPTCHA verification failed"})
+            raise serializers.ValidationError(
+                {"recaptcha": "reCAPTCHA verification failed"}
+            )
 
         return data
 
@@ -136,4 +140,8 @@ class CommentDetailSerializer(serializers.ModelSerializer):
     @extend_schema_field(serializers.ListField(child=serializers.DictField()))
     def get_replies(self, obj):
         qs = obj.get_replies()
-        return CommentDetailSerializer(qs, many=True, context=self.context).data
+        return CommentDetailSerializer(
+            qs,
+            many=True,
+            context=self.context
+        ).data

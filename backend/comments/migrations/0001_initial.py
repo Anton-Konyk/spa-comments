@@ -36,7 +36,9 @@ class Migration(migrations.Migration):
                         upload_to=comments.models.comments_file_path,
                         validators=[
                             django.core.validators.FileExtensionValidator(
-                                allowed_extensions=["jpg", "jpeg", "png", "gif", "txt"]
+                                allowed_extensions=[
+                                    "jpg", "jpeg", "png", "gif", "txt"
+                                ]
                             ),
                             comments.models.validate_file_size,
                         ],
