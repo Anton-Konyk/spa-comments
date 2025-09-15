@@ -207,13 +207,14 @@
 </template>
 
 <script>
-import { ref, computed, onMounted, watch } from 'vue';
+import { ref, computed, onMounted, watch, onBeforeUnmount } from 'vue';
 import { useRouter } from 'vue-router';
 import axios from 'axios';
 import Cookies from 'js-cookie';
 import { usePagination } from '../composables/usePagination.js';
 import VueEasyLightbox from 'vue-easy-lightbox';
 import CommentForm from './CommentForm.vue';
+import { useCommentsWS } from '../composables/useCommentsWS.js';
 
 export default {
   name: 'CommentList',
@@ -249,9 +250,7 @@ export default {
 
     const showRootForm = ref(false);
 
-    const isImage = (url) => {
-      return /\.(jpg|jpeg|png|gif|webp)$/i.test(url);
-    };
+    const isImage = (url) => /\.(jpe?g|png|gif|webp)$/i.test(String(url || ''));
 
     let pagination = null;
 
@@ -267,7 +266,9 @@ export default {
         const res = await axios.get(`${import.meta.env.VITE_BACKEND_URL}/api/v1/users/me/`, {
           withCredentials: true,
         });
-        currentUser.value = res.data;
+        const u = res.data || null;
+        if (u && u.avatar) u.avatar = toAbs(u.avatar);
+        currentUser.value = u;
       } catch {
         currentUser.value = null;
       }
@@ -321,7 +322,7 @@ export default {
       loading.value = true;
       try {
         await pagination.fetchPage(page);
-        comments.value = pagination.items.value;
+        comments.value = pagination.items.value.map(normalizeComment);
         currentPage.value = pagination.currentPage.value;
         totalPages.value = pagination.totalPages.value;
         inputPage.value = pagination.inputPage.value;
@@ -344,7 +345,7 @@ export default {
           acc.push(...batch);
           url = data.next || null;
         }
-        allComments.value = acc;
+        allComments.value = acc.map(normalizeComment);
       } catch (e) {
         console.error('Error fetching all pages:', e);
       } finally {
@@ -472,11 +473,69 @@ export default {
       }
     };
 
+    const toAbs = (u) => {
+      if (!u) return u;
+      const s = String(u);
+      if (/^https?:\/\//i.test(s)) return s;
+      if (s.startsWith('/')) {
+        const base = String(config.value?.BACKEND_URL || '').replace(/\/+$/, '');
+        return `${base}${s}`;
+      }
+      return s;
+    };
+
+    const normalizeComment = (c) => {
+      if (!c) return c;
+      const user = c.user ? { ...c.user, avatar: toAbs(c.user.avatar) } : null;
+      return { ...c, file: toAbs(c.file), user };
+    };
+
+    function applyIncomingComment(evt) {
+      if (!evt || evt.action !== 'comment.created') return;
+
+      // normalize incoming item (absolute URLs, etc.)
+      const item = normalizeComment(evt);
+
+      // 1) bump replies_count on parent if present
+      if (item.parent) {
+        const pAll = allComments.value.find((c) => c.id === item.parent);
+        if (pAll) pAll.replies_count = (pAll.replies_count ?? 0) + 1;
+
+        const pPage = comments.value.find((c) => c.id === item.parent);
+        if (pPage) pPage.replies_count = (pPage.replies_count ?? 0) + 1;
+      }
+
+      // 2) insert LIFO
+      if (useClientPaging.value) {
+        if (!allComments.value.some((c) => c.id === item.id)) {
+          allComments.value.unshift(item);
+        }
+      } else {
+        if (currentPage.value === 1 && !comments.value.some((c) => c.id === item.id)) {
+          comments.value.unshift(item);
+          if (comments.value.length > pageSize.value) comments.value.pop();
+        }
+      }
+    }
+
+    let wsCtl = null;
+    function handleWsEvent(data) {
+      applyIncomingComment(data);
+    }
+
     onMounted(async () => {
       await fetchConfig();
       initPagination();
       await fetchPage(1);
-      await fetchCurrentUser(); // auth
+      await fetchCurrentUser();
+
+      // Connect WS
+      wsCtl = useCommentsWS({ onEvent: handleWsEvent });
+      wsCtl.connect();
+    });
+
+    onBeforeUnmount(() => {
+      if (wsCtl) wsCtl.disconnect();
     });
 
     return {
@@ -804,29 +863,29 @@ export default {
   border: none;
   background: transparent;
   cursor: pointer;
+}
 
-  /* Add root comment */
-  .add-root {
-    margin: 12px 0;
-  }
-  .add-btn {
-    padding: 8px 14px;
-    background: #1a73e8;
-    color: white;
-    border: none;
-    border-radius: 6px;
-    cursor: pointer;
-    font-size: 14px;
-  }
-  .add-btn:hover {
-    background: #1669c1;
-  }
-  .root-form {
-    margin: 16px 0;
-    padding: 12px;
-    border: 1px solid rgba(0, 0, 0, 0.1);
-    border-radius: 6px;
-    background: #fafafa;
-  }
+/* Add root comment */
+.add-root {
+  margin: 12px 0;
+}
+.add-btn {
+  padding: 8px 14px;
+  background: #1a73e8;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 14px;
+}
+.add-btn:hover {
+  background: #1669c1;
+}
+.root-form {
+  margin: 16px 0;
+  padding: 12px;
+  border: 1px solid rgba(0, 0, 0, 0.1);
+  border-radius: 6px;
+  background: #fafafa;
 }
 </style>
