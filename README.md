@@ -79,11 +79,8 @@ docker compose -f docker-compose.dev-redis-mysql.yml up --build
 #Swagger UI: http://localhost:8000/api/v1/doc/swagger/
 ```
 
-
 ## Contributing
 
 It's open source code.
 If you'd like to contribute, please fork the repository and use a feature
 branch. Pull requests are warmly welcome.
-
-
