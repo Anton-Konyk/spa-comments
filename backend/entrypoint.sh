@@ -38,4 +38,4 @@ if [ -n "$DJANGO_SUPERUSER_USERNAME" ]; then
 fi
 
 # run Daphne (ASGI)
-exec daphne -b 0.0.0.0 -p 8000 spa_comments.asgi:application
+exec daphne -b 0.0.0.0 -p ${PORT:-8000} spa_comments.asgi:application
