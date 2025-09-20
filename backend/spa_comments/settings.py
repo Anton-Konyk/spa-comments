@@ -13,6 +13,8 @@ import mimetypes
 import os
 from pathlib import Path
 from dotenv import load_dotenv
+import dj_database_url
+
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -61,6 +63,7 @@ RECAPTCHA_SECRET_KEY = os.getenv("RECAPTCHA_SECRET_KEY")
 ASGI_APPLICATION = "spa_comments.asgi.application"
 
 REDIS_URL = os.getenv("REDIS_URL")
+
 
 # Application definition
 
@@ -117,29 +120,62 @@ WSGI_APPLICATION = "spa_comments.wsgi.application"
 # https://docs.djangoproject.com/en/5.2/ref/settings/#databases
 
 DB_ENGINE = os.getenv("DB_ENGINE", "sqlite")  # "sqlite" | "mysql"
-if DB_ENGINE == "mysql":
+# if DB_ENGINE == "mysql":
+#     DATABASES = {
+#         "default": {
+#             "ENGINE": "django.db.backends.mysql",
+#             "NAME": os.getenv("DB_NAME", "spa"),
+#             "USER": os.getenv("DB_USER", "spa"),
+#             "PASSWORD": os.getenv("DB_PASSWORD", "spa"),
+#             "HOST": os.getenv("DB_HOST", "db"),
+#             "PORT": os.getenv("DB_PORT", "3306"),
+#             "OPTIONS": {
+#                 "charset": "utf8mb4",
+#                 "init_command": "SET sql_mode='STRICT_ALL_TABLES'"
+#             },
+#         }
+#     }
+# else:
+#     DATABASES = {
+#         "default": {
+#             "ENGINE": "django.db.backends.sqlite3",
+#             "NAME": os.getenv("SQLITE_PATH", BASE_DIR / "db.sqlite3"),
+#         }
+#     }
+DATABASE_URL = os.getenv("DATABASE_URL", "").strip()
+
+if DATABASE_URL:
     DATABASES = {
-        "default": {
-            "ENGINE": "django.db.backends.mysql",
-            "NAME": os.getenv("DB_NAME", "spa"),
-            "USER": os.getenv("DB_USER", "spa"),
-            "PASSWORD": os.getenv("DB_PASSWORD", "spa"),
-            "HOST": os.getenv("DB_HOST", "db"),
-            "PORT": os.getenv("DB_PORT", "3306"),
-            "OPTIONS": {
-                "charset": "utf8mb4",
-                "init_command": "SET sql_mode='STRICT_ALL_TABLES'"
-            },
-        }
+        "default": dj_database_url.parse(
+            DATABASE_URL,
+            conn_max_age=600,
+            ssl_require=True,
+        )
     }
 else:
-    DATABASES = {
-        "default": {
-            "ENGINE": "django.db.backends.sqlite3",
-            "NAME": os.getenv("SQLITE_PATH", BASE_DIR / "db.sqlite3"),
+    DB_ENGINE = os.getenv("DB_ENGINE", "sqlite")  # "sqlite" | "mysql"
+    if DB_ENGINE == "mysql":
+        DATABASES = {
+            "default": {
+                "ENGINE": "django.db.backends.mysql",
+                "NAME": os.getenv("DB_NAME", "spa"),
+                "USER": os.getenv("DB_USER", "spa"),
+                "PASSWORD": os.getenv("DB_PASSWORD", "spa"),
+                "HOST": os.getenv("DB_HOST", "db"),
+                "PORT": os.getenv("DB_PORT", "3306"),
+                "OPTIONS": {
+                    "charset": "utf8mb4",
+                    "init_command": "SET sql_mode='STRICT_ALL_TABLES'",
+                },
+            }
         }
-    }
-
+    else:
+        DATABASES = {
+            "default": {
+                "ENGINE": "django.db.backends.sqlite3",
+                "NAME": os.getenv("SQLITE_PATH", BASE_DIR / "db.sqlite3"),
+            }
+        }
 
 # Password validation
 # https://docs.djangoproject.com/en/5.2/ref/settings/#auth-password-validators
@@ -254,3 +290,6 @@ if not DEBUG:
     SESSION_COOKIE_SECURE = True
     CSRF_COOKIE_SECURE = True
     SECURE_SSL_REDIRECT = os.getenv("SECURE_SSL_REDIRECT", "False") == "True"
+
+if not DEBUG:
+    STATICFILES_STORAGE = "whitenoise.storage.CompressedManifestStaticFilesStorage"
