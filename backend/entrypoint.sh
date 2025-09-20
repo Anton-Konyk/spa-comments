@@ -12,14 +12,31 @@ if [ "${DB_ENGINE:-sqlite}" = "mysql" ] && [ -n "${DB_HOST:-}" ]; then
 fi
 
 # ---- wait Redis only if REDIS_URL set ----
+#if [ -n "$REDIS_URL" ]; then
+#  REDIS_HOST=$(echo "$REDIS_URL" | sed -E 's#redis://([^:/]+).*#\1#')
+#  REDIS_PORT=$(echo "$REDIS_URL" | sed -E 's#redis://[^:/]+:([0-9]+).*#\1#')
+#  REDIS_HOST=${REDIS_HOST:-redis}
+#  REDIS_PORT=${REDIS_PORT:-6379}
+#  echo "Waiting for Redis at $REDIS_HOST:$REDIS_PORT..."
+#  until nc -z "$REDIS_HOST" "$REDIS_PORT"; do
+#    echo "Waiting for Redis at $REDIS_HOST:$REDIS_PORT..."
+#    sleep 1
+#  done
+#fi
 if [ -n "$REDIS_URL" ]; then
-  REDIS_HOST=$(echo "$REDIS_URL" | sed -E 's#redis://([^:/]+).*#\1#')
-  REDIS_PORT=$(echo "$REDIS_URL" | sed -E 's#redis://[^:/]+:([0-9]+).*#\1#')
-  REDIS_HOST=${REDIS_HOST:-redis}
-  REDIS_PORT=${REDIS_PORT:-6379}
-  echo "Waiting for Redis at $REDIS_HOST:$REDIS_PORT..."
+  URL_NO_SCHEME="${REDIS_URL#*://}"
+  HOSTPORT="${URL_NO_SCHEME#*@}"
+  if [ "$HOSTPORT" = "$URL_NO_SCHEME" ]; then
+    HOSTPORT="$URL_NO_SCHEME"
+  fi
+  HOSTPORT="${HOSTPORT%%/*}"
+  REDIS_HOST="${HOSTPORT%%:*}"
+  REDIS_PORT="${HOSTPORT##*:}"
+  [ "$REDIS_PORT" = "$REDIS_HOST" ] && REDIS_PORT=6379
+
+  echo "Waiting for Redis at ${REDIS_HOST}:${REDIS_PORT}..."
   until nc -z "$REDIS_HOST" "$REDIS_PORT"; do
-    echo "Waiting for Redis at $REDIS_HOST:$REDIS_PORT..."
+    echo "Waiting for Redis at ${REDIS_HOST}:${REDIS_PORT}..."
     sleep 1
   done
 fi
