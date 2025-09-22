@@ -31,13 +31,9 @@
 <script setup>
 import { ref, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
-import axios from 'axios';
-import Cookies from 'js-cookie';
-import { ensureCsrf } from '@/utils/csrf';
+import client from '@/utils/client';
 
 const router = useRouter();
-
-const VITE_BACKEND_URL = import.meta.env.VITE_BACKEND_URL;
 const recaptchaSiteKey = import.meta.env.VITE_RECAPTCHA_SITE_KEY;
 
 const form = ref({
@@ -65,33 +61,29 @@ const handleLogin = async () => {
   loading.value = true;
 
   try {
-    const csrftoken = await ensureCsrf();
-    if (!csrftoken) throw new Error('CSRF token missing. Refresh the page.');
-
     const recaptchaToken = window.grecaptcha.getResponse(recaptchaWidgetId);
     if (!recaptchaToken) throw new Error('Please complete the reCAPTCHA.');
 
-    const formData = {
+    const payload = {
       username: form.value.username,
       password: form.value.password,
       recaptcha_token: recaptchaToken,
     };
 
-    await axios.post(`${VITE_BACKEND_URL}/api/v1/users/login/`, formData, {
-      headers: { 'X-CSRFToken': csrftoken },
-      withCredentials: true,
-    });
+    await client.post('/api/v1/users/login/', payload);
 
     success.value = true;
     try {
-      const me = await axios.get(`${VITE_BACKEND_URL}/api/v1/users/me/`, { withCredentials: true });
+      const me = await client.get('/api/v1/users/me/');
       localStorage.setItem('currentUser', JSON.stringify(me.data));
     } catch (e) {
       console.error('fetch me failed', e);
     }
     form.value.username = '';
     form.value.password = '';
-    window.grecaptcha.reset(recaptchaWidgetId);
+    if (recaptchaWidgetId !== null) {
+      window.grecaptcha.reset(recaptchaWidgetId);
+    }
 
     const redirectTo = router.currentRoute.value.query.next || '/';
     setTimeout(() => {
