@@ -33,6 +33,7 @@ import { ref, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
 import axios from 'axios';
 import Cookies from 'js-cookie';
+import { ensureCsrf } from '@/utils/csrf';
 
 const router = useRouter();
 
@@ -64,7 +65,7 @@ const handleLogin = async () => {
   loading.value = true;
 
   try {
-    const csrftoken = Cookies.get('csrftoken');
+    const csrftoken = await ensureCsrf();
     if (!csrftoken) throw new Error('CSRF token missing. Refresh the page.');
 
     const recaptchaToken = window.grecaptcha.getResponse(recaptchaWidgetId);
