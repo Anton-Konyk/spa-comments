@@ -1,22 +1,35 @@
 import Cookies from 'js-cookie';
-import axios from 'axios';
 
 const BACKEND_URL = import.meta.env.VITE_BACKEND_URL;
+const CSRF_COOKIE = 'csrftoken';
+
+let inflight = null;
+
+export function getCsrfTokenFromCookie() {
+  return Cookies.get(CSRF_COOKIE) || null;
+}
 
 export async function ensureCsrf() {
-  let token = Cookies.get('csrftoken');
+  let token = getCsrfTokenFromCookie();
 
-  if (!token) {
-    const res = await axios.get(`${BACKEND_URL}/api/v1/config/?format=json&lang=en`, {
-      withCredentials: true,
+  if (token) return token;
+
+  if (inflight) {
+    await inflight;
+    return getCsrfTokenFromCookie();
+  }
+
+  const url = new URL('/api/v1/config/?format=json', BACKEND_URL).toString();
+  inflight = fetch(url, { credentials: 'include', cache: 'no-store' })
+    .then((r) => r.json().catch(() => ({})))
+    .finally(() => {
+      inflight = null;
     });
-    token = res.data?.csrfToken || Cookies.get('csrftoken');
-  }
 
-  if (token) {
-    axios.defaults.withCredentials = true;
-    axios.defaults.headers.common['X-CSRFToken'] = token;
+  try {
+    const data = await inflight;
+    return getCsrfTokenFromCookie() || data?.csrfToken || null;
+  } catch {
+    return getCsrfTokenFromCookie();
   }
-
-  return token;
 }
