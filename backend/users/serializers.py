@@ -113,3 +113,7 @@ class RegisterUserSerializer(serializers.ModelSerializer):
 
     def to_representation(self, instance):
         return SpaUserSerializer(instance, context=self.context).data
+
+
+class EmptySerializer(serializers.Serializer):
+    pass

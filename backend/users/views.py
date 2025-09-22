@@ -1,4 +1,5 @@
 from django.contrib.auth import login, logout
+from drf_spectacular.utils import OpenApiResponse, extend_schema
 from rest_framework import status
 from rest_framework.generics import (
     CreateAPIView,
@@ -11,7 +12,8 @@ from rest_framework.response import Response
 from .serializers import (
     SpaUserSerializer,
     RegisterUserSerializer,
-    LoginSerializer
+    LoginSerializer,
+    EmptySerializer,
 )
 
 
@@ -49,8 +51,16 @@ class LoginUserView(GenericAPIView):
 class LogoutUserView(GenericAPIView):
     """Logout"""
     permission_classes = [IsAuthenticated]
+    serializer_class = EmptySerializer
 
-    def post(self, request, *args, **kwargs):
+    @extend_schema(
+        summary="Log out current user",
+        description="Ends the current session (cookie-based).",
+        request=None,
+        responses={204: OpenApiResponse(description="Logged out")},
+        tags=["auth"],
+    )
+    def post(self, request):
         logout(request)
         return Response(
             {"detail": "Successfully logged out."},
