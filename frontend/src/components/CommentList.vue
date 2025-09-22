@@ -209,8 +209,7 @@
 <script>
 import { ref, computed, onMounted, watch, onBeforeUnmount } from 'vue';
 import { useRouter } from 'vue-router';
-import axios from 'axios';
-import Cookies from 'js-cookie';
+import client from '@/utils/client';
 import { usePagination } from '../composables/usePagination.js';
 import VueEasyLightbox from 'vue-easy-lightbox';
 import CommentForm from './CommentForm.vue';
@@ -263,9 +262,7 @@ export default {
     // ---- AUTH (added) ----
     const fetchCurrentUser = async () => {
       try {
-        const res = await axios.get(`${import.meta.env.VITE_BACKEND_URL}/api/v1/users/me/`, {
-          withCredentials: true,
-        });
+        const res = await client.get('/api/v1/users/me/');
         const u = res.data || null;
         if (u && u.avatar) u.avatar = toAbs(u.avatar);
         currentUser.value = u;
@@ -276,14 +273,7 @@ export default {
 
     const logout = async () => {
       try {
-        await axios.post(
-          `${import.meta.env.VITE_BACKEND_URL}/api/v1/users/logout/`,
-          {},
-          {
-            withCredentials: true,
-            headers: { 'X-CSRFToken': Cookies.get('csrftoken') || '' },
-          }
-        );
+        await client.post('/api/v1/users/logout/', {});
         currentUser.value = null;
       } catch (err) {
         console.error('Logout error', err);
@@ -300,9 +290,9 @@ export default {
     // ---- COMMENTS (your code) ----
     const fetchConfig = async () => {
       try {
-        const response = await axios.get(
-          `${import.meta.env.VITE_BACKEND_URL}/api/v1/config/?format=json&lang=en`
-        );
+        const response = await client.get('/api/v1/config/', {
+          params: { format: 'json', lang: 'en' },
+        });
         config.value = response.data;
       } catch (error) {
         console.error('Error fetching config:', error);
@@ -311,10 +301,7 @@ export default {
 
     const initPagination = () => {
       if (!config.value) return;
-      pagination = usePagination(
-        `${config.value.BACKEND_URL}/api/v1/comments/`,
-        config.value.PAGE_SIZE
-      );
+      pagination = usePagination(`/api/v1/comments/`, config.value.PAGE_SIZE);
     };
 
     const fetchPage = async (page) => {
@@ -335,11 +322,11 @@ export default {
       if (!config.value) return;
       loading.value = true;
       try {
-        const startUrl = `${config.value.BACKEND_URL}/api/v1/comments/?format=json`;
+        const startUrl = `/api/v1/comments/?format=json`;
         let url = startUrl;
         const acc = [];
         while (url) {
-          const res = await axios.get(url);
+          const res = await client.get(url);
           const data = res.data;
           const batch = Array.isArray(data) ? data : data.results || [];
           acc.push(...batch);
@@ -478,8 +465,11 @@ export default {
       const s = String(u);
       if (/^https?:\/\//i.test(s)) return s;
       if (s.startsWith('/')) {
-        const base = String(config.value?.BACKEND_URL || '').replace(/\/+$/, '');
-        return `${base}${s}`;
+        try {
+          return new URL(s, client.defaults.baseURL).toString();
+        } catch {
+          return s;
+        }
       }
       return s;
     };
