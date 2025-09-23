@@ -1,35 +1,41 @@
-import Cookies from 'js-cookie';
-
-const BACKEND_URL = import.meta.env.VITE_BACKEND_URL;
-const CSRF_COOKIE = 'csrftoken';
+let csrfTokenCache = null;
 
 let inflight = null;
 
-export function getCsrfTokenFromCookie() {
-  return Cookies.get(CSRF_COOKIE) || null;
+export function getCachedCsrfToken() {
+  return csrfTokenCache;
 }
 
-export async function ensureCsrf() {
-  let token = getCsrfTokenFromCookie();
+export function setCachedCsrfToken(token) {
+  if (token) csrfTokenCache = token;
+}
 
-  if (token) return token;
+/**
+ * Guarantees the presence of a CSRF token:
+ * - If it's already in the cache, it will return it.
+ * - Otherwise, it will retrieve /api/v1/config/ (it will set a cookie on the backend domain
+ * and return the token in JSON), store it in the cache, and return it.
+ */
+export async function ensureCsrf() {
+  if (csrfTokenCache) return csrfTokenCache;
 
   if (inflight) {
     await inflight;
-    return getCsrfTokenFromCookie();
+    return csrfTokenCache;
   }
 
-  const url = new URL('/api/v1/config/?format=json', BACKEND_URL).toString();
+  const BACKEND_URL = import.meta.env.VITE_BACKEND_URL;
+  const url = new URL('/api/v1/config/?format=json&lang=en', BACKEND_URL).toString();
+
   inflight = fetch(url, { credentials: 'include', cache: 'no-store' })
     .then((r) => r.json().catch(() => ({})))
+    .then((data) => {
+      if (data?.csrfToken) csrfTokenCache = data.csrfToken;
+    })
     .finally(() => {
       inflight = null;
     });
 
-  try {
-    const data = await inflight;
-    return getCsrfTokenFromCookie() || data?.csrfToken || null;
-  } catch {
-    return getCsrfTokenFromCookie();
-  }
+  await inflight;
+  return csrfTokenCache;
 }
