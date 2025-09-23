@@ -75,8 +75,7 @@
  */
 import { ref, onMounted, watch, computed, nextTick } from 'vue';
 import { useRouter } from 'vue-router';
-import axios from 'axios';
-import Cookies from 'js-cookie';
+import client from '@/utils/client.js';
 import DOMPurify from 'dompurify';
 
 const props = defineProps({
@@ -337,10 +336,8 @@ const handleSubmit = async () => {
 
   submitting.value = true;
   try {
-    await axios.post(`${import.meta.env.VITE_BACKEND_URL}/api/v1/comments/create/`, formData, {
-      withCredentials: true,
-      headers: { 'X-CSRFToken': Cookies.get('csrftoken') },
-    });
+    // POST via shared client: CSRF header & cookies are handled by interceptors
+    await client.post('/api/v1/comments/create/', formData);
 
     successMessage.value = 'Comment submitted!';
     text.value = '';
