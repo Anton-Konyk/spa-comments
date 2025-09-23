@@ -1,43 +1,51 @@
 import { ref } from 'vue';
-import axios from 'axios';
+import client from '@/utils/client';
 
-export function usePagination(apiUrl, pageSize) {
+export function usePagination(baseUrl, pageSize) {
   const items = ref([]);
-  const loading = ref(true);
+  const loading = ref(false);
   const currentPage = ref(1);
   const totalPages = ref(1);
   const inputPage = ref(1);
 
-  const fetchPage = async (page = 1) => {
+  async function fetchPage(page = 1, extraParams = {}) {
     loading.value = true;
     try {
-      const response = await axios.get(`${apiUrl}?format=json&page=${page}`);
-      items.value = response.data.results;
+      const { data } = await client.get(baseUrl, {
+        params: { format: 'json', page, ...extraParams },
+      });
+
+      const results = Array.isArray(data) ? data : data.results || [];
+      items.value = results;
+
+      const count = data?.count ?? results.length;
+      const size = Number(pageSize) || results.length || 1;
+      totalPages.value = Math.max(1, Math.ceil(count / size));
+
       currentPage.value = page;
-      totalPages.value = Math.ceil(response.data.count / pageSize);
-      inputPage.value = currentPage.value;
+      inputPage.value = page;
     } catch (error) {
       console.error('Error fetching page:', error);
     } finally {
       loading.value = false;
     }
-  };
+  }
 
-  const prevPage = async () => {
+  async function prevPage() {
     if (currentPage.value > 1) await fetchPage(currentPage.value - 1);
-  };
+  }
 
-  const nextPage = async () => {
+  async function nextPage() {
     if (currentPage.value < totalPages.value) await fetchPage(currentPage.value + 1);
-  };
+  }
 
-  const goToPage = async (page) => {
+  async function goToPage(page) {
     if (page >= 1 && page <= totalPages.value) await fetchPage(page);
-  };
+  }
 
-  const goToInputPage = async () => {
-    await goToPage(inputPage.value);
-  };
+  async function goToInputPage() {
+    await goToPage(Number(inputPage.value || 1));
+  }
 
   return {
     items,
