@@ -31,7 +31,7 @@
 <script setup>
 import { ref, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
-import client from '@/utils/client';
+import client from '@/utils/client.js';
 
 const router = useRouter();
 const recaptchaSiteKey = import.meta.env.VITE_RECAPTCHA_SITE_KEY;
