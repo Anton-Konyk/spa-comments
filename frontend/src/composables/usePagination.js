@@ -1,5 +1,5 @@
 import { ref } from 'vue';
-import client from '@/utils/client';
+import client from '@/utils/client.js';
 
 export function usePagination(baseUrl, pageSize) {
   const items = ref([]);
