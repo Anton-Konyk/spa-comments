@@ -32,18 +32,33 @@
 <script setup>
 /**
  * CommentDetail.vue
- * - Loads one comment thread with nested replies.
- * - Subscribes to WS and inserts new replies into the open thread in realtime.
- * - Shows a toast for new replies and highlights the new node for 10 seconds.
  *
- * Notes:
- * - WS URL comes from useCommentsWS() which reads VITE_WS_URL or derives from location.
- * - We normalize file/avatar URLs to absolute using VITE_BACKEND_URL if backend returns relative paths.
+ * Purpose
+ *  - Renders a single comment thread (root + nested replies).
+ *  - Realtime: subscribes to a WebSocket and injects new replies into the open thread.
+ *
+ * Networking
+ *  - Uses the shared Axios `client` (baseURL + withCredentials + global CSRF handling).
+ *  - Normalizes relative file/avatar URLs to absolute using `client.defaults.baseURL`.
+ *
+ * WebSocket
+ *  - `useCommentsWS` resolves the WS URL in this order:
+ *      1) explicit `wsUrl` param (not used here),
+ *      2) `VITE_WS_URL`,
+ *      3) `client.defaults.baseURL` + `VITE_WS_PATH` (http→ws, https→wss),
+ *      4) `window.location` + `VITE_WS_PATH`.
+ *  - Listens for `{ action: "comment.created", ... }`. If the event belongs to the
+ *    currently opened thread (its `parent` exists in this tree), the reply is added
+ *    to its parent (LIFO), the `replies_count` is incremented, a toast is shown, and
+ *    the new node is highlighted for 10 seconds.
+ *
+ * UX
+ *  - `handleReply()` focuses the reply form and pre-fills reply context.
+ *  - `refreshComments()` reloads the thread; `goBack()` returns to the list.
  */
 import { ref, onMounted, onBeforeUnmount, nextTick } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
-import axios from 'axios';
-import Cookies from 'js-cookie';
+import client from '@/utils/client.js';
 import CommentNode from './CommentNode.vue';
 import CommentForm from './CommentForm.vue';
 import { useCommentsWS } from '../composables/useCommentsWS.js';
@@ -69,12 +84,18 @@ const toast = ref(null); // { id, author }
 let wsCtl = null;
 
 /* ----- helpers: URLs normalization ----- */
-const BACKEND_BASE = (import.meta.env.VITE_BACKEND_URL || '').replace(/\/+$/, '');
-const toAbs = (url) => {
-  if (!url) return url;
-  if (/^https?:\/\//i.test(url)) return url; // already absolute
-  if (url.startsWith('/')) return `${BACKEND_BASE}${url}`;
-  return url;
+const toAbs = (u) => {
+  if (!u) return u;
+  const s = String(u);
+  if (/^https?:\/\//i.test(s)) return s;
+  if (s.startsWith('/')) {
+    try {
+      return new URL(s, client.defaults.baseURL).toString();
+    } catch {
+      return s;
+    }
+  }
+  return s;
 };
 
 /* ----- normalize nodes from API/WS ----- */
@@ -104,10 +125,8 @@ const fetchComment = async () => {
   loading.value = true;
   error.value = '';
   try {
-    const res = await axios.get(
-      `${import.meta.env.VITE_BACKEND_URL}/api/v1/comments/${route.params.id}/`
-    );
-    comment.value = normalizeTree(res.data);
+    const { data } = await client.get(`/api/v1/comments/${route.params.id}/`);
+    comment.value = normalizeTree(data);
   } catch (e) {
     error.value = 'Failed to load comment.';
   } finally {
@@ -117,11 +136,8 @@ const fetchComment = async () => {
 
 const fetchCurrentUser = async () => {
   try {
-    const res = await axios.get(`${import.meta.env.VITE_BACKEND_URL}/api/v1/users/me/`, {
-      headers: { 'X-CSRFToken': Cookies.get('csrftoken') },
-      withCredentials: true,
-    });
-    currentUser.value = res.data;
+    const { data } = await client.get('/api/v1/users/me/');
+    currentUser.value = data || null;
   } catch {
     currentUser.value = null;
   }
