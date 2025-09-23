@@ -23,7 +23,7 @@
       <!-- Avatar -->
       <div class="form-group">
         <label for="avatar">Avatar</label>
-        <input type="file" id="avatar" @change="handleFile" />
+        <input type="file" id="avatar" accept="image/*" @change="handleFile" />
       </div>
 
       <!-- reCAPTCHA -->
@@ -46,9 +46,16 @@
 </template>
 
 <script>
-import axios from 'axios';
-import Cookies from 'js-cookie';
+/**
+ * Register.vue
+ * - Registers a new user with username, email, password and optional avatar.
+ * - Uses Google reCAPTCHA v2 (client-side token is sent as `recaptcha_token`).
+ * - Networking: uses shared Axios `client` (baseURL + withCredentials).
+ *   CSRF cookie/header are handled globally (no manual cookie reads here).
+ * - On success: shows message and redirects to Login (preserving ?next).
+ */
 import { useRouter } from 'vue-router';
+import client from '@/utils/client.js';
 
 export default {
   name: 'Register',
@@ -79,6 +86,9 @@ export default {
     validateForm() {
       const USERNAME_REGEX = /^[A-Za-z0-9]+$/;
       const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      // normalize
+      this.form.username = this.form.username.trim();
+      this.form.email = this.form.email.trim();
 
       if (!USERNAME_REGEX.test(this.form.username)) {
         this.errorMessage = 'Username may contain only Latin letters and digits.';
@@ -98,7 +108,7 @@ export default {
 
       this.submitting = true;
 
-      const token = window.grecaptcha.getResponse(this.recaptchaWidgetId);
+      const token = window.grecaptcha?.getResponse(this.recaptchaWidgetId);
       if (!token) {
         this.errorMessage = 'Please complete the reCAPTCHA.';
         this.submitting = false;
@@ -113,29 +123,34 @@ export default {
         if (this.form.avatar) formData.append('avatar', this.form.avatar);
         formData.append('recaptcha_token', token);
 
-        const csrfToken = Cookies.get('csrftoken');
-        const response = await axios.post(
-          `${import.meta.env.VITE_BACKEND_URL}/api/v1/users/register/`,
-          formData,
-          {
-            headers: { 'X-CSRFToken': csrfToken },
-            withCredentials: true,
-          }
-        );
+        const { data } = await client.post('/api/v1/users/register/', formData);
 
-        this.successMessage = `Welcome, ${response.data.username}! Registration successful. Please sign in.`;
+        this.successMessage = `Welcome, ${data?.username || this.form.username}! Registration successful. Please sign in.`;
 
         // Reset form + recaptcha
         this.form = { username: '', email: '', password: '', avatar: null };
-        window.grecaptcha.reset(this.recaptchaWidgetId);
+        if (this.recaptchaWidgetId !== null) {
+          window.grecaptcha?.reset(this.recaptchaWidgetId);
+        }
         setTimeout(() => {
           const next = this.$route.query.next || '/';
           this.router.replace({ name: 'Login', query: { next, registered: 1 } });
         }, 2000);
       } catch (error) {
-        if (error.response) {
-          this.errorMessage = Object.values(error.response.data).flat().join(' ');
-        } else if (error.request) {
+        const res = error?.response;
+        if (res?.data) {
+          try {
+            const d = res.data;
+            const msg = Array.isArray(d)
+              ? d.join(' ')
+              : typeof d === 'string'
+                ? d
+                : (Object.values(d).flat?.().join(' ') ?? 'Registration failed.');
+            this.errorMessage = msg;
+          } catch {
+            this.errorMessage = 'Registration failed.';
+          }
+        } else if (error?.request) {
           this.errorMessage = 'No response from server.';
         } else {
           this.errorMessage = 'Unexpected error.';
@@ -149,12 +164,22 @@ export default {
     },
   },
   mounted() {
-    if (window.grecaptcha) {
+    const render = () => {
       this.recaptchaWidgetId = window.grecaptcha.render(this.$refs.captcha, {
         sitekey: this.recaptchaSiteKey,
       });
+    };
+    if (window.grecaptcha) {
+      render();
     } else {
-      console.error('reCAPTCHA script not loaded!');
+      const t = setInterval(() => {
+        if (window.grecaptcha) {
+          clearInterval(t);
+          render();
+        }
+      }, 300);
+
+      setTimeout(() => clearInterval(t), 5000);
     }
   },
 };
