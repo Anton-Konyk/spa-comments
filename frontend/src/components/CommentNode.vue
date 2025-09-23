@@ -36,7 +36,7 @@
             :src="comment.file"
             alt="attachment"
             class="attachment-thumb"
-            @click.stop="openLightbox(fileUrl))"
+            @click.stop="openLightbox(fileUrl)"
           />
         </div>
       </div>
