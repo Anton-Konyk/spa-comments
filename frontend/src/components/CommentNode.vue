@@ -9,14 +9,7 @@
     <!-- Header: avatar + meta + actions -->
     <div class="comment-header">
       <div class="header-left">
-        <img
-          v-if="comment?.user?.avatar"
-          :src="comment.user.avatar"
-          alt="avatar"
-          class="avatar"
-          width="48"
-          height="48"
-        />
+        <img v-if="avatarUrl" :src="avatarUrl" alt="avatar" class="avatar" width="48" height="48" />
         <div class="meta">
           <div class="meta-top">
             <span class="username">{{ comment?.user?.username || 'Anonymous' }}</span>
@@ -38,12 +31,12 @@
           {{ previewText }}
         </div>
 
-        <div v-if="comment?.file && isImage(comment.file)" class="body-attachment">
+        <div v-if="fileUrl && isImage(fileUrl)" class="body-attachment">
           <img
             :src="comment.file"
             alt="attachment"
             class="attachment-thumb"
-            @click.stop="openLightbox(comment.file)"
+            @click.stop="openLightbox(fileUrl))"
           />
         </div>
       </div>
@@ -82,17 +75,22 @@
 <script>
 /**
  * CommentNode.vue
- * - Renders one comment node with avatar/meta, truncated text preview and image thumb.
- * - On preview click, opens a modal with FULL sanitized HTML (whitelist).
- * - Accepts `highlightMap` to highlight a node for a short time (10s).
+ * - Renders a single comment node with avatar/meta, truncated text preview, and image thumbnail.
+ * - Clicking preview opens a modal with FULL sanitized HTML (strict allow-list).
+ * - Accepts `highlightMap` to temporarily highlight a node (e.g., 10s).
  *
- * Sanitization policy (aligned with CommentForm.vue):
+ * Security/Sanitization (aligned with CommentForm.vue):
  *   Allowed tags: <a href="" title=""></a>, <code></code>, <i></i>, <strong></strong>
- *   Allowed attrs on <a>: href, title; href must be http(s) or mailto.
+ *   Allowed attrs on <a>: href, title (href must be http(s) or mailto)
+ *
+ * Networking:
+ *   Uses the shared Axios client baseURL to resolve relative media URLs into absolute ones.
+ *   (No direct API calls here; only URL normalization.)
  */
 import { defineComponent } from 'vue';
 import VueEasyLightbox from 'vue-easy-lightbox';
 import DOMPurify from 'dompurify';
+import client from '@/utils/client.js';
 
 const ALLOWED_TAGS = ['a', 'code', 'i', 'strong'];
 const ALLOWED_ATTRS = ['href', 'title'];
@@ -103,6 +101,20 @@ const SANITIZE_OPTS = {
   ALLOW_ARIA_ATTR: false,
   ALLOWED_URI_REGEXP: /^(?:https?:|mailto:)/i,
 };
+
+function toAbs(u) {
+  if (!u) return u;
+  const s = String(u);
+  if (/^https?:\/\//i.test(s)) return s;
+  if (s.startsWith('/')) {
+    try {
+      return new URL(s, client.defaults.baseURL).toString();
+    } catch {
+      return s;
+    }
+  }
+  return s;
+}
 
 export default defineComponent({
   name: 'CommentNode',
@@ -143,6 +155,14 @@ export default defineComponent({
     isHighlighted() {
       return !!(this.highlightMap && this.comment && this.highlightMap[this.comment.id]);
     },
+    // normalized media URLs for template bindings (optional)
+    avatarUrl() {
+      const a = this.comment?.user?.avatar;
+      return toAbs(a);
+    },
+    fileUrl() {
+      return toAbs(this.comment?.file);
+    },
   },
   methods: {
     formatDate(iso) {
@@ -164,7 +184,7 @@ export default defineComponent({
       return /\.(jpe?g|png|gif|webp)$/i.test(url || '');
     },
     openLightbox(url) {
-      this.lightboxImgs = [url];
+      this.lightboxImgs = [toAbs(url)];
       this.lightboxIndex = 0;
       this.showLightbox = true;
     },
