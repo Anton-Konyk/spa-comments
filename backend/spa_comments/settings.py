@@ -46,7 +46,10 @@ CORS_ALLOWED_ORIGINS = \
 
 CORS_ALLOW_CREDENTIALS = True
 
-CORS_ALLOW_HEADERS = list(default_headers) + ["x-csrftoken"]
+CORS_ALLOW_HEADERS = list(default_headers) + [
+    "x-csrftoken",
+    "x-requested-with",
+]
 
 CSRF_TRUSTED_ORIGINS = [
     o.strip() for o in os.getenv("CSRF_TRUSTED_ORIGINS", "").split(",")
@@ -83,6 +86,7 @@ INSTALLED_APPS = [
     "channels",
     "users",
     "comments",
+    "storages",
 ]
 
 AUTH_USER_MODEL = "users.SpaUser"
@@ -301,3 +305,26 @@ if not DEBUG:
 
 if not DEBUG:
     STATICFILES_STORAGE = "whitenoise.storage.CompressedManifestStaticFilesStorage"
+
+# === Supabase Storage (MEDIA) через S3 совместимость ===
+DEFAULT_FILE_STORAGE = "spa_comments.storage_backends.SupabaseMediaStorage"
+
+AWS_S3_ENDPOINT_URL = os.getenv("SUPABASE_S3_ENDPOINT")
+AWS_S3_REGION_NAME = os.getenv("SUPABASE_S3_REGION", "us-east-1")
+AWS_ACCESS_KEY_ID = os.getenv("SUPABASE_S3_KEY")
+AWS_SECRET_ACCESS_KEY = os.getenv("SUPABASE_S3_SECRET")
+AWS_STORAGE_BUCKET_NAME = os.getenv("SUPABASE_MEDIA_BUCKET", "spa-comments-media")
+
+# for Supabase S3:
+AWS_S3_ADDRESSING_STYLE = "path"   # forcePathStyle: true
+AWS_S3_SIGNATURE_VERSION = "s3v4"
+AWS_S3_USE_SSL = True
+AWS_S3_VERIFY = True
+
+# It's better not to set up an ACL, but to create a public bucket at the Supabase level.
+AWS_DEFAULT_ACL = None
+AWS_QUERYSTRING_AUTH = False
+
+# MEDIA_URL will be built manually through CDN (см. storage_backends.py)
+MEDIA_URL = (f"https://{os.getenv('SUPABASE_PROJECT_REF')}.supabase.co/storage/v1/object/public/"
+             f"{os.getenv('SUPABASE_MEDIA_BUCKET','spa-comments-media')}/")
