@@ -209,7 +209,7 @@
 <script>
 import { ref, computed, onMounted, watch, onBeforeUnmount } from 'vue';
 import { useRouter } from 'vue-router';
-import client from '@/utils/client';
+import client from '@/utils/client.js';
 import { usePagination } from '../composables/usePagination.js';
 import VueEasyLightbox from 'vue-easy-lightbox';
 import CommentForm from './CommentForm.vue';
