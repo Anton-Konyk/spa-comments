@@ -1,29 +1,25 @@
 import { ref } from 'vue';
+import client from '@/utils/client';
+
 /**
- * WS URL resolution priority:
- * 1) VITE_WS_URL (full ws(s)://…)
- * 2) VITE_BACKEND_URL + VITE_WS_PATH (http->ws, https->wss)
- * 3) window.location.host + VITE_WS_PATH (fallback)
- *
- * Recommended set:
- * - VITE_WS_URL  ИЛИ
- * - VITE_BACKEND_URL и VITE_WS_PATH
+ * Priority of choice WS URL:
+ * 1) parameter wsUrl, transmitted in useCommentsWS({ wsUrl })
+ * 2) VITE_WS_URL (full ws:// или wss://)
+ * 3) client.defaults.baseURL + VITE_WS_PATH  (http->ws, https->wss)
+ * 4) window.location.host + VITE_WS_PATH
  */
-function resolveWsUrl() {
-  const WS_URL_ENV = (import.meta.env.VITE_WS_URL || '').trim();
-  const BACKEND_URL = (import.meta.env.VITE_BACKEND_URL || '').trim();
-  const WS_PATH = normalizePath((import.meta.env.VITE_WS_PATH || '/ws/comments/').trim());
+function resolveWsUrl(overrideUrl) {
+  if (overrideUrl && overrideUrl.trim()) return overrideUrl.trim();
 
-  if (WS_URL_ENV) return WS_URL_ENV;
+  const envWs = (import.meta.env.VITE_WS_URL || '').trim();
+  if (envWs) return envWs;
 
-  if (BACKEND_URL) {
+  const wsPath = normalizePath(import.meta.env.VITE_WS_PATH || '/ws/comments/');
+
+  const axiosBase = (client.defaults.baseURL || '').trim();
+  if (axiosBase) {
     try {
-      const u = new URL(BACKEND_URL);
-      // http -> ws, https -> wss
-      u.protocol = u.protocol === 'https:' ? 'wss:' : 'ws:';
-
-      const base = u.toString().replace(/\/+$/, '');
-      return `${base}${WS_PATH}`;
+      return buildWsUrlFromBase(axiosBase, wsPath);
     } catch {
       // fallthrough
     }
@@ -31,10 +27,12 @@ function resolveWsUrl() {
 
   if (typeof window !== 'undefined' && window.location) {
     const proto = window.location.protocol === 'https:' ? 'wss' : 'ws';
-    return `${proto}://${window.location.host}${WS_PATH}`;
+    return `${proto}://${window.location.host}${wsPath}`;
   }
 
-  throw new Error('WS URL cannot be resolved. Set VITE_WS_URL or VITE_BACKEND_URL/VITE_WS_PATH.');
+  throw new Error(
+    'WS URL cannot be resolved. Pass wsUrl, or set VITE_WS_URL, or set client baseURL + VITE_WS_PATH.'
+  );
 }
 
 function normalizePath(p) {
@@ -42,28 +40,33 @@ function normalizePath(p) {
   return p.startsWith('/') ? p : `/${p}`;
 }
 
-export function useCommentsWS({ onEvent }) {
+function buildWsUrlFromBase(baseUrl, path) {
+  const u = new URL(baseUrl);
+  u.protocol = u.protocol === 'https:' ? 'wss:' : 'ws:';
+  // origin: protocol+host(+port)
+  const origin = u.origin.replace(/\/+$/, '');
+  return `${origin}${path}`;
+}
+
+export function useCommentsWS({ onEvent, wsUrl } = {}) {
   const isConnected = ref(false);
   let ws = null;
   let heartbeatTimer = null;
   let reconnectTimer = null;
   let reconnectAttempts = 0;
 
-  const WS_URL = resolveWsUrl();
+  const WS_URL = resolveWsUrl(wsUrl);
 
   function startHeartbeat() {
     stopHeartbeat();
-    // keep-alive ping 20 c
-    heartbeatTimer = setInterval(
-      () => {
-        try {
-          if (ws?.readyState === WebSocket.OPEN) {
-            ws.send(JSON.stringify({ ping: Date.now() }));
-          }
-        } catch (_) {}
-      },
-      Number(import.meta.env.VITE_WS_HEARTBEAT_MS || 20000)
-    );
+    const interval = Number(import.meta.env.VITE_WS_HEARTBEAT_MS || 20000);
+    heartbeatTimer = setInterval(() => {
+      try {
+        if (ws?.readyState === WebSocket.OPEN) {
+          ws.send(JSON.stringify({ ping: Date.now() }));
+        }
+      } catch (_) {}
+    }, interval);
   }
 
   function stopHeartbeat() {
