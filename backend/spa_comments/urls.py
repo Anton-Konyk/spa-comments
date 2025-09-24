@@ -34,6 +34,7 @@ urlpatterns = [
     path('api/v1/', include('comments.urls')),
     path('api/v1/', include('config.urls')),
     path("api/v1/users/", include("users.urls")),
-] + [
-    re_path(r"^media/(?P<path>.*)$", media_serve, {"document_root": settings.MEDIA_ROOT}),
 ]
+# + [
+#     re_path(r"^media/(?P<path>.*)$", media_serve, {"document_root": settings.MEDIA_ROOT}),
+# ]
