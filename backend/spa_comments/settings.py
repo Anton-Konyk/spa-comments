@@ -330,5 +330,5 @@ SUPABASE_PROJECT_REF = os.getenv("SUPABASE_PROJECT_REF")
 if SUPABASE_PROJECT_REF:
     MEDIA_URL = (
         f"https://{SUPABASE_PROJECT_REF}.supabase.co/storage/v1/object/public/"
-        f"{os.getenv('SUPABASE_MEDIA_BUCKET','spa-comments-media')}/"
+        f"{os.getenv("SUPABASE_MEDIA_BUCKET", "spa-comments-media")}/"
     )
