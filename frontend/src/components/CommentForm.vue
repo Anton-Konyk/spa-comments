@@ -336,14 +336,20 @@ const handleSubmit = async () => {
 
   submitting.value = true;
   try {
-    // POST via shared client: CSRF header & cookies are handled by interceptors
-    await client.post('/api/v1/comments/create/', formData);
+    // POST via shared client: CSRF & cookies handled by interceptors
+    const { data } = await client.post('/api/v1/comments/create/', formData);
 
     successMessage.value = 'Comment submitted!';
     text.value = '';
     file.value = null;
     if (widgetId !== null) window.grecaptcha.reset(widgetId);
-    emit('comment-posted');
+    // Emit with payload so parent can react (e.g., navigate)
+    emit('comment-posted', data);
+    // For root comments (no parent) navigate straight to the thread
+    if (!props.parentId && data?.id) {
+      await router.push({ name: 'CommentDetail', params: { id: data.id } });
+      return;
+    }
   } catch (err) {
     errorMessage.value = err?.response?.data
       ? JSON.stringify(err.response.data)
