@@ -7,8 +7,10 @@ from django.core.validators import FileExtensionValidator
 from django.utils.text import slugify
 from django.db import models
 from django.conf import settings
-from PIL import Image
 from lxml import html, etree
+from PIL import Image, UnidentifiedImageError, ImageOps
+from io import BytesIO
+from django.core.files.base import ContentFile
 
 
 IMAGE_RESIZE_WIDTH = 320
@@ -109,43 +111,74 @@ class Comment(models.Model):
             attributes=ALLOWED_ATTRS,
             protocols=["http", "https"],
             strip=True,
-            strip_comments=True
+            strip_comments=True,
         )
-
         self.text = bleach.linkify(
             self.text,
             callbacks=[
                 bleach.callbacks.nofollow,
                 bleach.callbacks.target_blank
-            ]
+            ],
         )
-
         self.text = to_valid_xhtml_fragment(self.text)
 
+        if self.file:
+            name_lower = (self.file.name or "").lower()
+            ext = os.path.splitext(name_lower)[1]
+            is_jpg = ext in (".jpg", ".jpeg")
+            is_png = ext == ".png"
+
+            if is_jpg or is_png:
+                try:
+                    try:
+                        self.file.seek(0)
+                    except Exception:
+                        pass
+
+                    with Image.open(self.file) as img:
+                        try:
+                            img = ImageOps.exif_transpose(img)
+                        except Exception:
+                            pass
+
+                        if (img.width > IMAGE_RESIZE_WIDTH
+                                or img.height > IMAGE_RESIZE_HEIGHT):
+                            img.thumbnail((
+                                IMAGE_RESIZE_WIDTH,
+                                IMAGE_RESIZE_HEIGHT
+                            ))
+
+                        buf = BytesIO()
+                        if is_jpg:
+
+                            if img.mode in ("RGBA", "P"):
+                                img = img.convert("RGB")
+                            img.save(
+                                buf,
+                                format="JPEG",
+                                quality=85,
+                                optimize=True
+                            )
+                        else:
+                            # PNG
+                            img.save(buf, format="PNG", optimize=True)
+
+                        buf.seek(0)
+
+                        self.file = ContentFile(
+                            buf.read(),
+                            name=self.file.name
+                        )
+
+                except (
+                        UnidentifiedImageError,
+                        OSError,
+                        ValueError,
+                        Image.DecompressionBombError
+                ):
+                    pass
+
         super().save(*args, **kwargs)
-
-        if self.file and self.file.name.lower().endswith((
-                ".jpg", ".jpeg", ".png", ".gif")):
-            file_path = self.file.path
-            ext = os.path.splitext(self.file.name)[1].lower()
-
-            if ext == ".gif":
-                return
-
-            with Image.open(file_path) as img:
-                if (img.width > IMAGE_RESIZE_WIDTH or
-                        img.height > IMAGE_RESIZE_HEIGHT):
-                    img.thumbnail((IMAGE_RESIZE_WIDTH, IMAGE_RESIZE_HEIGHT))
-
-                    # Map extension to Pillow format explicitly
-                    format_map = {
-                        ".jpg": "JPEG",
-                        ".jpeg": "JPEG",
-                        ".png": "PNG",
-                    }
-                    fmt = format_map.get(ext, "PNG")
-
-                    img.save(file_path, format=fmt)
 
     def __str__(self):
         username = self.user.username if self.user else "Anonymous"
