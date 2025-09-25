@@ -48,10 +48,12 @@ const success = ref(false);
 let recaptchaWidgetId = null;
 
 onMounted(() => {
-  if (window.grecaptcha) {
-    // render reCAPTCHA explicitly
-    recaptchaWidgetId = window.grecaptcha.render(document.querySelector('.g-recaptcha'), {
-      sitekey: recaptchaSiteKey,
+  // reCAPTCHA can be loaded later - use ready()
+  if (window.grecaptcha?.ready) {
+    window.grecaptcha.ready(() => {
+      recaptchaWidgetId = window.grecaptcha.render(document.querySelector('.g-recaptcha'), {
+        sitekey: recaptchaSiteKey,
+      });
     });
   }
 });
