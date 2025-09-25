@@ -103,11 +103,23 @@ class CommentCreateSerializer(serializers.ModelSerializer):
         token = data.get("recaptcha_token")
         secret = settings.RECAPTCHA_SECRET_KEY
 
-        response = requests.post(
-            settings.RECAPTCHA_VERIFY_URL,
-            data={"secret": secret, "response": token},
-        )
-        result = response.json()
+        # response = requests.post(
+        #     settings.RECAPTCHA_VERIFY_URL,
+        #     data={"secret": secret, "response": token},
+        # )
+        # result = response.json()
+
+        try:
+            response = requests.post(
+                settings.RECAPTCHA_VERIFY_URL,
+                data={"secret": secret, "response": token},
+                timeout=5,
+                )
+            result = response.json()
+        except Exception:
+            raise serializers.ValidationError(
+                {"recaptcha": "Verification error"}
+            )
 
         if not result.get("success"):
             raise serializers.ValidationError(
