@@ -451,8 +451,13 @@ export default {
       showCommentModal.value = true;
     };
 
-    const onRootCreated = async () => {
+    const onRootCreated = async (created) => {
       showRootForm.value = false;
+      // If the form passed the created comment, navigate to its detail page
+      if (created?.id) {
+        await router.push({ name: 'CommentDetail', params: { id: created.id } });
+        return;
+      }
       if (useClientPaging.value) {
         await fetchAllPages();
       } else {
