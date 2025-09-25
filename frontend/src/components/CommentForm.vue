@@ -357,10 +357,24 @@ const handleSubmit = async () => {
       return;
     }
   } catch (err) {
-    errorMessage.value = err?.response?.data
-      ? JSON.stringify(err.response.data)
-      : 'Failed to create comment.';
-    console.error('Create comment error:', err?.response?.data || err);
+    const resp = err?.response;
+    const data = resp?.data;
+    if (typeof data === 'string') {
+      // If server sent HTML (Django 500 page), show friendly text
+      if (/^\s*<!doctype html>/i.test(data)) {
+        errorMessage.value =
+          resp?.status === 500
+            ? 'Server Error (500). Please try again.'
+            : `Request failed (status ${resp?.status || 'unknown'}).`;
+      } else {
+        errorMessage.value = data;
+      }
+    } else if (data && typeof data === 'object') {
+      errorMessage.value = data.non_field_errors?.[0] || data.detail || JSON.stringify(data);
+    } else {
+      errorMessage.value = err?.message || 'Failed to create comment.';
+    }
+    console.error('Create comment error:', resp?.status, resp?.headers, data || err);
   } finally {
     submitting.value = false;
   }
