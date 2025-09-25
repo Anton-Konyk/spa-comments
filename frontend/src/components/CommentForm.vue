@@ -339,7 +339,11 @@ const handleSubmit = async () => {
   submitting.value = true;
   try {
     // POST via shared client: CSRF & cookies handled by interceptors
-    const { data } = await client.post('/api/v1/comments/create/', formData);
+    const { data } = await client.post('/api/v1/comments/create/', formData, {
+      headers: {
+        Accept: 'application/json',
+      },
+    });
 
     successMessage.value = 'Comment submitted!';
     text.value = '';
