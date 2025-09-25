@@ -89,16 +89,23 @@ const handleLogin = async () => {
       window.grecaptcha.reset(recaptchaWidgetId);
     }
 
-    const redirectTo = router.currentRoute.value.query.next || '/';
+    // Safe redirect: only relative paths will be allowed
+    const rawNext = router.currentRoute.value.query.next;
+    const redirectTo = typeof rawNext === 'string' && rawNext.startsWith('/') ? rawNext : '/';
     setTimeout(() => {
       router.push(redirectTo);
-    }, 800);
+    }, 500);
   } catch (err) {
     error.value =
       err.response?.data?.detail ||
       err.response?.data?.non_field_errors?.[0] ||
       err.message ||
       'Login failed';
+    if (recaptchaWidgetId !== null) {
+      try {
+        window.grecaptcha.reset(recaptchaWidgetId);
+      } catch {}
+    }
   } finally {
     loading.value = false;
   }
