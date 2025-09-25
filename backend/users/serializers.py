@@ -1,5 +1,9 @@
+from typing import Optional
+from urllib.parse import urlparse
+
 import requests
 from django.contrib.auth.password_validation import validate_password
+from django.core.exceptions import SuspiciousFileOperation
 from drf_spectacular.utils import extend_schema_field
 from rest_framework import serializers
 from django.contrib.auth import authenticate
@@ -19,13 +23,40 @@ class SpaUserSerializer(serializers.ModelSerializer):
         fields = ["id", "username", "email", "avatar"]
 
     @extend_schema_field(str)
-    def get_avatar(self, obj) -> str | None:
+    def get_avatar(self, obj) -> Optional[str]:
         request = self.context.get("request")
-        if obj.avatar and hasattr(obj.avatar, "url"):
-            if request:
-                return request.build_absolute_uri(obj.avatar.url)
-            return obj.avatar.url
-        return None
+        f = getattr(obj, "avatar", None)
+        if not f or not getattr(f, "name", ""):
+            return None
+
+        try:
+            url = f.url
+        except (
+                ValueError,
+                AttributeError,
+                NotImplementedError,
+                SuspiciousFileOperation,
+                FileNotFoundError
+        ):
+            return None
+
+        if not isinstance(url, str) or not url:
+            return None
+
+        parsed = urlparse(url)
+        if parsed.scheme in ("http", "https"):
+            return url
+
+        if url.startswith("//") and request:
+            return f"{request.scheme}:{url}"
+
+        if request:
+            try:
+                return request.build_absolute_uri(url)
+            except (ValueError, UnicodeError):
+                return url
+
+        return url
 
 
 class LoginSerializer(serializers.Serializer):
