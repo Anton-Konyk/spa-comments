@@ -210,6 +210,7 @@
 import { ref, computed, onMounted, watch, onBeforeUnmount } from 'vue';
 import { useRouter } from 'vue-router';
 import client from '@/utils/client.js';
+import { refreshCsrf } from '@/utils/client.js';
 import { usePagination } from '../composables/usePagination.js';
 import VueEasyLightbox from 'vue-easy-lightbox';
 import CommentForm from './CommentForm.vue';
@@ -274,6 +275,7 @@ export default {
     const logout = async () => {
       try {
         await client.post('/api/v1/users/logout/', {});
+        await refreshCsrf();
         currentUser.value = null;
       } catch (err) {
         console.error('Logout error', err);
