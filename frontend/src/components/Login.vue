@@ -32,6 +32,7 @@
 import { ref, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
 import client from '@/utils/client.js';
+import { refreshCsrf } from '@/utils/client.js';
 
 const router = useRouter();
 const recaptchaSiteKey = import.meta.env.VITE_RECAPTCHA_SITE_KEY;
@@ -71,6 +72,7 @@ const handleLogin = async () => {
     };
 
     await client.post('/api/v1/users/login/', payload);
+    await refreshCsrf();
 
     success.value = true;
     try {
