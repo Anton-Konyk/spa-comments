@@ -166,6 +166,10 @@ class CommentCreateSerializer(serializers.ModelSerializer):
 
         return super().create(validated_data)
 
+    # important: return the "read" view without the broad except
+    def to_representation(self, instance):
+        return CommentDetailSerializer(instance, context=self.context).data
+
 
 class CommentDetailSerializer(serializers.ModelSerializer):
     user = SpaUserSerializer(read_only=True)
