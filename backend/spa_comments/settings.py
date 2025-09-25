@@ -303,11 +303,16 @@ if not DEBUG:
     SESSION_COOKIE_SAMESITE = "None"
     CSRF_COOKIE_SAMESITE = "None"
 
-if not DEBUG:
-    STATICFILES_STORAGE = "whitenoise.storage.CompressedManifestStaticFilesStorage"
 
-# === Supabase Storage (MEDIA) через S3 совместимость ===
-DEFAULT_FILE_STORAGE = "spa_comments.storage_backends.SupabaseMediaStorage"
+# === Supabase Storage (MEDIA) ===
+STORAGES = {
+    "default": {
+        "BACKEND": "spa_comments.storage_backends.SupabaseMediaStorage",
+    },
+    "staticfiles": {
+        "BACKEND": "whitenoise.storage.CompressedManifestStaticFilesStorage",
+    },
+}
 
 AWS_S3_ENDPOINT_URL = os.getenv("SUPABASE_S3_ENDPOINT")
 AWS_S3_REGION_NAME = os.getenv("SUPABASE_S3_REGION", "us-east-1")
