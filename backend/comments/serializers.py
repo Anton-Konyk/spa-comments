@@ -1,5 +1,9 @@
+from typing import Optional
+from urllib.parse import urlparse
+
 import requests
 import bleach
+from django.core.exceptions import SuspiciousFileOperation
 from rest_framework import serializers
 
 
@@ -15,9 +19,43 @@ ALLOWED_ATTRS = {"a": ["href", "title"]}
 ALLOWED_PROTOCOLS = ["http", "https"]
 
 
+def _safe_file_url(obj, request) -> Optional[str]:
+    """
+    Returns the absolute URL of the file or None.
+    Safely handles file absence and storage issues.
+    """
+    f = getattr(obj, "file", None)
+    if not f:
+        return None
+    try:
+        url = f.url
+    except (
+            ValueError,
+            AttributeError,
+            NotImplementedError,
+            SuspiciousFileOperation,
+            FileNotFoundError
+    ):
+        return None
+    if not isinstance(url, str) or not url:
+        return None
+
+    parsed = urlparse(url)
+    if parsed.scheme in ("http", "https"):
+        return url
+
+    if request:
+        try:
+            return request.build_absolute_uri(url)
+        except (ValueError, UnicodeError):
+            return url
+    return url
+
+
 class CommentListSerializer(serializers.ModelSerializer):
     """Serializer for a list of comments with nested replies"""
     user = SpaUserSerializer(read_only=True)
+    file = serializers.SerializerMethodField()
     is_reply = serializers.SerializerMethodField()
     replies_count = serializers.SerializerMethodField(
         method_name="get_replies_count"
@@ -42,6 +80,10 @@ class CommentListSerializer(serializers.ModelSerializer):
     @extend_schema_field(int)
     def get_replies_count(self, obj) -> int:
         return obj.replies.count()
+
+    def get_file(self, obj) -> Optional[str]:
+        request = self.context.get("request")
+        return _safe_file_url(obj, request)
 
 
 class CommentCreateSerializer(serializers.ModelSerializer):
@@ -71,7 +113,6 @@ class CommentCreateSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError(
                 {"recaptcha": "reCAPTCHA verification failed"}
             )
-
         return data
 
     def validate_file(self, value):
