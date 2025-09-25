@@ -14,12 +14,11 @@ Including another URLconf
     1. Import the include() function: from django.urls import include, path
     2. Add a URL to urlpatterns:  path('blog/', include('blog.urls'))
 """
+import os
 
-from django.conf.urls.static import static
 from django.contrib import admin
-from django.urls import path, include, re_path
+from django.urls import path, include
 from drf_spectacular.views import SpectacularAPIView, SpectacularSwaggerView
-from django.views.static import serve as media_serve
 
 from django.conf import settings
 
@@ -38,3 +37,6 @@ urlpatterns = [
 # + [
 #     re_path(r"^media/(?P<path>.*)$", media_serve, {"document_root": settings.MEDIA_ROOT}),
 # ]
+if os.getenv("ENABLE_STORAGE_PROBE", "") == "True":
+    from spa_comments.probes import storage_probe
+    urlpatterns += [path("health/storage/", storage_probe)]
