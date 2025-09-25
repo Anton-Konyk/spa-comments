@@ -303,6 +303,8 @@ function insertLink() {
 }
 
 const handleSubmit = async () => {
+  // prevent double submit (race before the button becomes disabled)
+  if (submitting.value) return;
   errorMessage.value = '';
   successMessage.value = '';
 
