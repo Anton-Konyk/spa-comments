@@ -38,20 +38,20 @@
 
       <input type="file" accept=".jpg,.jpeg,.png,.gif,.txt" @change="handleFileChange" />
 
-      <div class="form-actions">
-        <button type="button" @click="showDraftPreview = true">Preview</button>
-        <button type="submit" :disabled="submitting">
-          {{ submitting ? 'Submitting...' : 'Submit' }}
-        </button>
-        <button type="button" class="cancel-btn" @click="cancelReply">Cancel</button>
-      </div>
-
       <!-- Draft preview modal -->
       <div v-if="showDraftPreview" class="txt-modal">
         <div class="txt-content">
           <button class="txt-close" @click="showDraftPreview = false">×</button>
           <div v-html="draftPreviewHtml"></div>
         </div>
+      </div>
+
+      <div class="form-actions">
+        <button type="button" @click="showDraftPreview = true">Preview</button>
+        <button type="submit" :disabled="submitting">
+          {{ submitting ? 'Submitting...' : 'Submit' }}
+        </button>
+        <button type="button" class="cancel-btn" @click="cancelReply">Cancel</button>
       </div>
 
       <!-- reCAPTCHA v2 -->
