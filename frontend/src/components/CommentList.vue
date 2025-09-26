@@ -361,6 +361,7 @@ export default {
         if (page < 1) page = 1;
         if (page > totalPages.value) page = totalPages.value;
         currentPage.value = page;
+        inputPage.value = page;
       } else {
         await fetchPage(page);
       }
@@ -378,7 +379,7 @@ export default {
       if (!allComments.value.length) {
         await fetchAllPages();
       }
-      currentPage.value = 1;
+      inputPage.value = currentPage.value;
     };
 
     const baseArray = computed(() => (useClientPaging.value ? allComments.value : comments.value));
@@ -416,6 +417,11 @@ export default {
         totalPages.value = Math.max(1, Math.ceil(sortedComments.value.length / pageSize.value));
         if (currentPage.value > totalPages.value) currentPage.value = totalPages.value;
       }
+    });
+
+    // Synchronize the input field with the current page in client pagination
+    watch(currentPage, (val) => {
+      if (useClientPaging.value) inputPage.value = val;
     });
 
     const truncateText = (text) => {
