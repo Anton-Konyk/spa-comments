@@ -375,10 +375,10 @@ export default {
         sortField.value = field;
         sortDirection.value = 'asc';
       }
-      useClientPaging.value = true;
       if (!allComments.value.length) {
         await fetchAllPages();
       }
+      useClientPaging.value = true;
       inputPage.value = currentPage.value;
     };
 
@@ -414,6 +414,7 @@ export default {
 
     watch([useClientPaging, sortedComments, pageSize], () => {
       if (useClientPaging.value) {
+        if (!sortedComments.value.length) return;
         totalPages.value = Math.max(1, Math.ceil(sortedComments.value.length / pageSize.value));
         if (currentPage.value > totalPages.value) currentPage.value = totalPages.value;
       }
