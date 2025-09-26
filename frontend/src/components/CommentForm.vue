@@ -19,8 +19,7 @@
       </div>
 
       <p class="allowed-hint">
-        Allowed HTML: &lt;a href="" title=""&gt;&lt;/a&gt;, &lt;code&gt;&lt;/code&gt;,
-        &lt;i&gt;&lt;/i&gt;, &lt;strong&gt;&lt;/strong&gt;
+        Images: JPG/PNG up to 320×240 (larger will be downscaled). GIF up to 320×240. TXT: ≤ 100 KB.
       </p>
 
       <!-- Tag toolbar -->
@@ -37,7 +36,7 @@
 
       <textarea ref="ta" v-model="text" placeholder="Write your comment..." required></textarea>
 
-      <input type="file" @change="handleFileChange" />
+      <input type="file" accept=".jpg,.jpeg,.png,.gif,.txt" @change="handleFileChange" />
 
       <!-- reCAPTCHA v2 -->
       <div ref="captcha" class="g-recaptcha"></div>
@@ -58,20 +57,22 @@
 <script setup>
 /**
  * CommentForm.vue
- * - Shows auth CTA for guests.
- * - For authenticated users, renders a comment form with reCAPTCHA v2.
- * - Supports replying: receives parentId (pk) and optional replyToText for preview.
- * - Posts multipart/form-data to /api/v1/comments/create/ with CSRF and credentials.
+ * - Guests see auth CTA; authenticated users see the form with reCAPTCHA v2.
+ * - Reply flow supported via props { parentId, replyToText, replyToAuthor }.
+ * - Submits multipart/form-data to /api/v1/comments/create/ with CSRF & credentials.
  *
- * HTML validation policy:
- * - Only these tags are allowed: <a href="" title=""></a>, <code></code>, <i></i>, <strong></strong>
- * - Attributes allowed only on <a>: href, title. href must be http(s) or mailto.
- * - Tags must be properly nested/closed AND also parse as well-formed XHTML.
- * - We sanitize with DOMPurify and also require sanitize(text) === original (strict whitelist).
+ * FRONTEND VALIDATION (mirrors backend policy):
+ * - Images: allow JPG/PNG/GIF.
+ *   - JPG/PNG: if larger than 320×240, downscale proportionally on the client before upload.
+ *   - GIF: must be ≤ 320×240 (animation is not resized on the client); larger GIFs are rejected.
+ * - TXT: only .txt, max size 100 KB.
  *
- * Toolbar:
- * - Buttons wrap current selection (or insert placeholders) with allowed tags.
- * - <a> asks for URL (http(s)/mailto) and optional title; inserts <a href="..." title="...">selected or placeholder</a>.
+ * HTML policy for text:
+ * - Allowed tags: <a href="" title=""></a>, <code></code>, <i></i>, <strong></strong>;
+ * - Only http(s) or mailto: URLs in <a>;
+ * - Tags must be well-formed XHTML; DOMPurify(sanitize) must not change the text.
+ *
+ * Toolbar inserts/Wraps the allowed tags. <a> asks for URL and optional title.
  */
 import { ref, onMounted, watch, computed, nextTick } from 'vue';
 import { useRouter } from 'vue-router';
@@ -94,6 +95,18 @@ const file = ref(null);
 const submitting = ref(false);
 const errorMessage = ref('');
 const successMessage = ref('');
+
+const MAX_IMG_W = 320;
+const MAX_IMG_H = 240;
+const MAX_TXT_BYTES = 100 * 1024;
+
+const IMG_MIME_WHITELIST = ['image/jpeg', 'image/png', 'image/gif'];
+
+const extOf = (f) => (f?.name?.split('.').pop() || '').toLowerCase();
+const isTxt = (f) => f && (f.type === 'text/plain' || extOf(f) === 'txt');
+const isGif = (f) => f && (f.type === 'image/gif' || extOf(f) === 'gif');
+const isJpeg = (f) => f && (f.type === 'image/jpeg' || ['jpg', 'jpeg'].includes(extOf(f)));
+const isPng = (f) => f && (f.type === 'image/png' || extOf(f) === 'png');
 
 const captcha = ref(null);
 let widgetId = null;
@@ -119,6 +132,50 @@ const SANITIZE_OPTS = {
  * - For <a>: only href/title attrs; href must be http(s) or mailto
  * - For <i>/<strong>/<code>: no attributes allowed
  */
+// upload an image to find out the width/height
+function loadImage(file) {
+  return new Promise((resolve, reject) => {
+    const url = URL.createObjectURL(file);
+    const img = new Image();
+    img.onload = () => {
+      const w = img.naturalWidth || img.width;
+      const h = img.naturalHeight || img.height;
+      URL.revokeObjectURL(url);
+      resolve({ img, width: w, height: h });
+    };
+    img.onerror = (e) => {
+      URL.revokeObjectURL(url);
+      reject(e);
+    };
+    img.src = url;
+  });
+}
+
+async function maybeResizeJpegPng(file) {
+  const { width, height } = await loadImage(file);
+  if (width <= MAX_IMG_W && height <= MAX_IMG_H) return file;
+
+  const scale = Math.min(MAX_IMG_W / width, MAX_IMG_H / height);
+  const newW = Math.max(1, Math.round(width * scale));
+  const newH = Math.max(1, Math.round(height * scale));
+
+  const canvas = document.createElement('canvas');
+  canvas.width = newW;
+  canvas.height = newH;
+  const ctx = canvas.getContext('2d', { alpha: true });
+  const { img } = await loadImage(file);
+  ctx.drawImage(img, 0, 0, newW, newH);
+
+  const outType = isJpeg(file) ? 'image/jpeg' : 'image/png';
+  const quality = isJpeg(file) ? 0.85 : undefined;
+
+  const blob = await new Promise((res) => canvas.toBlob(res, outType, quality));
+  if (!blob) return file;
+
+  // имя оставляем прежним; тип соответствует содержимому
+  return new File([blob], file.name, { type: blob.type, lastModified: Date.now() });
+}
+
 function checkTagsWellFormed(html) {
   const stack = [];
   const tagRe = /<\/?([a-zA-Z]+)(\s[^>]*)?>/g;
@@ -220,8 +277,82 @@ function validateTextOrThrow(raw) {
 /** Short preview for the "Replying to" header */
 const clippedReply = computed(() => (props.replyToText || '').replace(/\s+/g, ' ').slice(0, 140));
 
-const handleFileChange = (e) => {
-  file.value = e.target.files[0] || null;
+const handleFileChange = async (e) => {
+  errorMessage.value = '';
+  successMessage.value = '';
+  const f = e.target.files?.[0];
+  if (!f) {
+    file.value = null;
+    return;
+  }
+
+  const looksLikeImg =
+    IMG_MIME_WHITELIST.includes(f.type) || ['jpg', 'jpeg', 'png', 'gif'].includes(extOf(f));
+  const looksLikeTxt = isTxt(f);
+  if (!looksLikeImg && !looksLikeTxt) {
+    errorMessage.value = 'Only JPG, PNG, GIF, or TXT files are allowed.';
+    e.target.value = '';
+    file.value = null;
+    return;
+  }
+
+  // TXT: only .txt and <= 100 KB
+  if (looksLikeTxt) {
+    if (extOf(f) !== 'txt') {
+      errorMessage.value = 'TXT file must have .txt extension.';
+      e.target.value = '';
+      file.value = null;
+      return;
+    }
+    if (f.size > MAX_TXT_BYTES) {
+      errorMessage.value = 'TXT file must be ≤ 100 KB.';
+      e.target.value = '';
+      file.value = null;
+      return;
+    }
+    file.value = f;
+    return;
+  }
+
+  // GIF: don't change it (to avoid breaking the animation)
+  // If it's larger than 320×240, we disable it.
+  if (isGif(f)) {
+    try {
+      const { width, height } = await loadImage(f);
+      if (width > MAX_IMG_W || height > MAX_IMG_H) {
+        errorMessage.value = 'GIF must be at most 320×240 (animation resize is not supported).';
+        e.target.value = '';
+        file.value = null;
+        return;
+      }
+    } catch {
+      // if you couldn't read it, we'll cover ourselves with a ban
+      errorMessage.value = 'Failed to read GIF image.';
+      e.target.value = '';
+      file.value = null;
+      return;
+    }
+    file.value = f;
+    return;
+  }
+
+  // JPEG/PNG
+  if (isJpeg(f) || isPng(f)) {
+    try {
+      file.value = await maybeResizeJpegPng(f);
+      return;
+    } catch {
+      errorMessage.value = 'Failed to process image.';
+      e.target.value = '';
+      file.value = null;
+      return;
+    }
+  }
+
+  // other cases
+  errorMessage.value = 'Unsupported file.';
+  e.target.value = '';
+  file.value = null;
 };
 
 /** reCAPTCHA render */
