@@ -20,7 +20,6 @@ from django.contrib import admin
 from django.urls import path, include
 from drf_spectacular.views import SpectacularAPIView, SpectacularSwaggerView
 
-from django.conf import settings
 
 urlpatterns = [
     path("admin/", admin.site.urls),
@@ -34,9 +33,7 @@ urlpatterns = [
     path('api/v1/', include('config.urls')),
     path("api/v1/users/", include("users.urls")),
 ]
-# + [
-#     re_path(r"^media/(?P<path>.*)$", media_serve, {"document_root": settings.MEDIA_ROOT}),
-# ]
+
 if os.getenv("ENABLE_STORAGE_PROBE", "") == "True":
     from spa_comments.probes import storage_probe
     urlpatterns += [path("health/storage/", storage_probe)]

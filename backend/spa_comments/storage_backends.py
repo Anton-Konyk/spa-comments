@@ -5,7 +5,8 @@ from storages.backends.s3boto3 import S3Boto3Storage
 
 class SupabaseMediaStorage(S3Boto3Storage):
     """
-    Writes via Supabase S3-compatible endpoint; reads via Supabase public CDN URL.
+    Writes via Supabase S3-compatible endpoint;
+    reads via Supabase public CDN URL.
     """
     bucket_name = os.getenv("SUPABASE_MEDIA_BUCKET", "spa-comments-media")
     default_acl = None
@@ -32,7 +33,8 @@ class SupabaseMediaStorage(S3Boto3Storage):
             # Fallback to S3Boto3Storage logic if ref is still unknown
             return super().url(name, parameters=parameters, expire=expire)
 
-        base = f"https://{project_ref}.supabase.co/storage/v1/object/public/{self.bucket_name}"
+        base = (f"https://{project_ref}."
+                f"supabase.co/storage/v1/object/public/{self.bucket_name}")
 
         key = quote(str(name).lstrip("/"), safe="/")
         return f"{base}/{key}"
