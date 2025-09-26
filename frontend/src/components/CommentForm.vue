@@ -38,13 +38,7 @@
 
       <input type="file" accept=".jpg,.jpeg,.png,.gif,.txt" @change="handleFileChange" />
 
-      <!-- Draft preview modal -->
-      <div v-if="showDraftPreview" class="txt-modal">
-        <div class="txt-content">
-          <button class="txt-close" @click="showDraftPreview = false">×</button>
-          <div v-html="draftPreviewHtml"></div>
-        </div>
-      </div>
+      <button type="button" class="preview-btn" @click="showDraftPreview = true">Preview</button>
 
       <div class="form-actions">
         <button type="button" @click="showDraftPreview = true">Preview</button>
@@ -62,6 +56,14 @@
           {{ submitting ? 'Submitting...' : 'Submit' }}
         </button>
         <button type="button" class="cancel-btn" @click="cancelReply">Cancel</button>
+      </div>
+
+      <!-- Draft preview modal -->
+      <div v-if="showDraftPreview" class="txt-modal">
+        <div class="txt-content">
+          <button class="txt-close" @click="showDraftPreview = false">×</button>
+          <div v-html="draftPreviewHtml"></div>
+        </div>
       </div>
 
       <p v-if="errorMessage" class="error">{{ errorMessage }}</p>
@@ -657,5 +659,21 @@ button[type='submit']:disabled {
   margin: 6px 0 10px;
   font-size: 12px;
   color: #666;
+}
+
+.file-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 8px 0 12px;
+}
+
+.preview-btn {
+  padding: 6px 10px;
+  border: 1px solid rgba(0, 0, 0, 0.12);
+  background: #fff;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 14px;
 }
 </style>
