@@ -36,16 +36,9 @@
 
       <textarea ref="ta" v-model="text" placeholder="Write your comment..." required></textarea>
 
-      <input type="file" accept=".jpg,.jpeg,.png,.gif,.txt" @change="handleFileChange" />
-
-      <button type="button" class="preview-btn" @click="showDraftPreview = true">Preview</button>
-
-      <div class="form-actions">
-        <button type="button" @click="showDraftPreview = true">Preview</button>
-        <button type="submit" :disabled="submitting">
-          {{ submitting ? 'Submitting...' : 'Submit' }}
-        </button>
-        <button type="button" class="cancel-btn" @click="cancelReply">Cancel</button>
+      <div class="file-row">
+        <input type="file" accept=".jpg,.jpeg,.png,.gif,.txt" @change="handleFileChange" />
+        <button type="button" class="preview-btn" @click="showDraftPreview = true">Preview</button>
       </div>
 
       <!-- reCAPTCHA v2 -->
