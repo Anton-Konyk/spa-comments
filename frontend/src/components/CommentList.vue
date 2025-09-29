@@ -211,7 +211,6 @@ import { ref, computed, onMounted, watch, onBeforeUnmount } from 'vue';
 import { useRouter } from 'vue-router';
 import client from '@/utils/client.js';
 import { refreshCsrf } from '@/utils/client.js';
-import { usePagination } from '../composables/usePagination.js';
 import VueEasyLightbox from 'vue-easy-lightbox';
 import CommentForm from './CommentForm.vue';
 import { useCommentsWS } from '../composables/useCommentsWS.js';
@@ -222,22 +221,26 @@ export default {
 
   setup() {
     const router = useRouter();
+
+    // data
     const comments = ref([]);
-    const allComments = ref([]);
     const loading = ref(true);
     const config = ref(null);
 
-    // auth state (added)
+    // auth state
     const currentUser = ref(null);
 
+    // pagination state
     const currentPage = ref(1);
     const totalPages = ref(1);
     const inputPage = ref(1);
 
-    const sortField = ref(null); // 'username' | 'email' | 'created_at' | null
-    const sortDirection = ref('asc'); // 'asc' | 'desc'
-    const useClientPaging = ref(false);
+    // server-side sorting state
+    const sortField = ref('created_at'); // NOTE: default visual state (LIFO)
+    const sortDirection = ref('desc'); // NOTE: default visual state (LIFO)
+    const serverOrdering = ref('-created_at'); // NOTE: DRF ordering param
 
+    // lightbox / previews
     const showLightbox = ref(false);
     const lightboxIndex = ref(0);
     const lightboxImgs = ref([]);
@@ -252,15 +255,13 @@ export default {
 
     const isImage = (url) => /\.(jpe?g|png|gif|webp)$/i.test(String(url || ''));
 
-    let pagination = null;
-
     const openLightbox = (url) => {
       lightboxImgs.value = [url];
       lightboxIndex.value = 0;
       showLightbox.value = true;
     };
 
-    // ---- AUTH (added) ----
+    // --- AUTH ---
     const fetchCurrentUser = async () => {
       try {
         const res = await client.get('/api/v1/users/me/');
@@ -289,7 +290,7 @@ export default {
       router.push({ name: 'Register', query: { next: router.currentRoute.value.fullPath } });
     };
 
-    // ---- COMMENTS (your code) ----
+    // --- CONFIG ---
     const fetchConfig = async () => {
       try {
         const response = await client.get('/api/v1/config/', {
@@ -301,130 +302,83 @@ export default {
       }
     };
 
-    const initPagination = () => {
-      if (!config.value) return;
-      pagination = usePagination(`/api/v1/comments/`, config.value.PAGE_SIZE);
-    };
+    // --- SERVER SORT HELPERS ---
+    // NOTE: map UI field -> DRF ordering field
+    function toServerField(field) {
+      if (field === 'username') return 'user__username';
+      if (field === 'email') return 'user__email';
+      return 'created_at';
+    }
+
+    // --- FETCH PAGE (SERVER PAGINATION + ORDERING) ---
+    const pageSize = computed(() => Number(config.value?.PAGE_SIZE || 25)); // NOTE: default 25 per requirements
 
     const fetchPage = async (page) => {
-      if (!pagination) return;
       loading.value = true;
       try {
-        await pagination.fetchPage(page);
-        comments.value = pagination.items.value.map(normalizeComment);
-        currentPage.value = pagination.currentPage.value;
-        totalPages.value = pagination.totalPages.value;
-        inputPage.value = pagination.inputPage.value;
+        const params = {
+          page,
+          ordering: serverOrdering.value,
+        };
+        const { data } = await client.get('/api/v1/comments/', { params });
+        const list = Array.isArray(data) ? data : data.results || [];
+        comments.value = list.map(normalizeComment);
+
+        // DRF typically returns `count`; fallback to list length for safety
+        const count = typeof data?.count === 'number' ? data.count : list.length;
+        totalPages.value = Math.max(1, Math.ceil(count / pageSize.value));
+
+        // Clamp page inside [1..totalPages]
+        const clamped = Math.min(Math.max(1, page), totalPages.value);
+        currentPage.value = clamped;
+        inputPage.value = clamped;
       } finally {
         loading.value = false;
       }
     };
 
-    const fetchAllPages = async () => {
-      if (!config.value) return;
-      loading.value = true;
-      try {
-        const startUrl = `/api/v1/comments/?format=json`;
-        let url = startUrl;
-        const acc = [];
-        while (url) {
-          const res = await client.get(url);
-          const data = res.data;
-          const batch = Array.isArray(data) ? data : data.results || [];
-          acc.push(...batch);
-          url = data.next || null;
-        }
-        allComments.value = acc.map(normalizeComment);
-      } catch (e) {
-        console.error('Error fetching all pages:', e);
-      } finally {
-        loading.value = false;
-      }
-    };
-
+    // --- NAVIGATION ---
     const prevPage = async () => {
-      if (useClientPaging.value) {
-        if (currentPage.value > 1) currentPage.value -= 1;
-      } else {
+      if (currentPage.value > 1) {
         await fetchPage(currentPage.value - 1);
       }
     };
     const nextPage = async () => {
-      if (useClientPaging.value) {
-        if (currentPage.value < totalPages.value) currentPage.value += 1;
-      } else {
+      if (currentPage.value < totalPages.value) {
         await fetchPage(currentPage.value + 1);
       }
     };
     const goToPage = async (page) => {
-      if (useClientPaging.value) {
-        if (page < 1) page = 1;
-        if (page > totalPages.value) page = totalPages.value;
-        currentPage.value = page;
-        inputPage.value = page;
-      } else {
-        await fetchPage(page);
-      }
+      await fetchPage(page);
     };
     const goToInputPage = async () => goToPage(inputPage.value);
 
+    // --- SERVER-SIDE SORT TRIGGER ---
     const sortBy = async (field) => {
+      // toggle or set direction
       if (sortField.value === field) {
         sortDirection.value = sortDirection.value === 'asc' ? 'desc' : 'asc';
       } else {
         sortField.value = field;
         sortDirection.value = 'asc';
       }
-      if (!allComments.value.length) {
-        await fetchAllPages();
+
+      // build DRF ordering string
+      const base = toServerField(field);
+      serverOrdering.value = (sortDirection.value === 'desc' ? '-' : '') + base;
+
+      // try to stay on same page; clamp inside new total pages after fetch
+      const target = currentPage.value;
+      await fetchPage(target);
+      if (currentPage.value > totalPages.value) {
+        await fetchPage(totalPages.value);
       }
-      useClientPaging.value = true;
-      inputPage.value = currentPage.value;
     };
 
-    const baseArray = computed(() => (useClientPaging.value ? allComments.value : comments.value));
+    // --- VISIBLE (server-paginated) ---
+    const visibleComments = computed(() => comments.value);
 
-    const sortedComments = computed(() => {
-      const arr = baseArray.value || [];
-      if (!sortField.value) return arr;
-
-      const getVal = (item) => {
-        if (sortField.value === 'username') return (item.user?.username || '').toLowerCase();
-        if (sortField.value === 'email') return (item.user?.email || '').toLowerCase();
-        if (sortField.value === 'created_at') return new Date(item.created_at).getTime();
-        return '';
-      };
-
-      return [...arr].sort((a, b) => {
-        const va = getVal(a);
-        const vb = getVal(b);
-        if (va < vb) return sortDirection.value === 'asc' ? -1 : 1;
-        if (va > vb) return sortDirection.value === 'asc' ? 1 : -1;
-        return 0;
-      });
-    });
-
-    const pageSize = computed(() => Number(config.value?.PAGE_SIZE || 10));
-
-    const visibleComments = computed(() => {
-      if (!useClientPaging.value) return sortedComments.value;
-      const start = (currentPage.value - 1) * pageSize.value;
-      return sortedComments.value.slice(start, start + pageSize.value);
-    });
-
-    watch([useClientPaging, sortedComments, pageSize], () => {
-      if (useClientPaging.value) {
-        if (!sortedComments.value.length) return;
-        totalPages.value = Math.max(1, Math.ceil(sortedComments.value.length / pageSize.value));
-        if (currentPage.value > totalPages.value) currentPage.value = totalPages.value;
-      }
-    });
-
-    // Synchronize the input field with the current page in client pagination
-    watch(currentPage, (val) => {
-      if (useClientPaging.value) inputPage.value = val;
-    });
-
+    // --- UTILITIES ---
     const truncateText = (text) => {
       const limit = Number(import.meta.env.VITE_COMMENT_TRUNCATE_LENGTH || 100);
       if (!text) return '';
@@ -462,16 +416,12 @@ export default {
 
     const onRootCreated = async (created) => {
       showRootForm.value = false;
-      // If the form passed the created comment, navigate to its detail page
       if (created?.id) {
         await router.push({ name: 'CommentDetail', params: { id: created.id } });
         return;
       }
-      if (useClientPaging.value) {
-        await fetchAllPages();
-      } else {
-        await fetchPage(currentPage.value);
-      }
+      // NOTE: reload current page with current server ordering
+      await fetchPage(currentPage.value);
     };
 
     const toAbs = (u) => {
@@ -494,31 +444,24 @@ export default {
       return { ...c, file: toAbs(c.file), user };
     };
 
+    // --- WS: keep as-is; for server pagination we only prepend on page 1 ---
     function applyIncomingComment(evt) {
       if (!evt || evt.action !== 'comment.created') return;
 
-      // normalize incoming item (absolute URLs, etc.)
       const item = normalizeComment(evt);
 
-      // 1) bump replies_count on parent if present
       if (item.parent) {
-        const pAll = allComments.value.find((c) => c.id === item.parent);
-        if (pAll) pAll.replies_count = (pAll.replies_count ?? 0) + 1;
-
+        // bump counters if visible
         const pPage = comments.value.find((c) => c.id === item.parent);
         if (pPage) pPage.replies_count = (pPage.replies_count ?? 0) + 1;
       }
 
-      // 2) insert LIFO
-      if (useClientPaging.value) {
-        if (!allComments.value.some((c) => c.id === item.id)) {
-          allComments.value.unshift(item);
-        }
-      } else {
-        if (currentPage.value === 1 && !comments.value.some((c) => c.id === item.id)) {
-          comments.value.unshift(item);
-          if (comments.value.length > pageSize.value) comments.value.pop();
-        }
+      // LIFO UX: only auto-prepend on page 1 to avoid confusing other pages
+      if (currentPage.value === 1 && !comments.value.some((c) => c.id === item.id)) {
+        comments.value.unshift(item);
+        // keep page size visually consistent
+        const maxRows = pageSize.value;
+        if (comments.value.length > maxRows) comments.value.pop();
       }
     }
 
@@ -529,11 +472,9 @@ export default {
 
     onMounted(async () => {
       await fetchConfig();
-      initPagination();
       await fetchPage(1);
       await fetchCurrentUser();
 
-      // Connect WS
       wsCtl = useCommentsWS({ onEvent: handleWsEvent });
       wsCtl.connect();
     });
@@ -544,15 +485,15 @@ export default {
 
     return {
       comments,
-      allComments,
       loading,
       currentPage,
       totalPages,
       inputPage,
+
       sortField,
       sortDirection,
       sortBy,
-      useClientPaging,
+
       visibleComments,
       prevPage,
       nextPage,
