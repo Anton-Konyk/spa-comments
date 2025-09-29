@@ -345,4 +345,9 @@ class Comment(models.Model):
 
     class Meta:
         verbose_name_plural = "comments"
+        indexes = [
+            models.Index(fields=["parent", "created_at"]),
+            models.Index(fields=["created_at"]),
+            models.Index(fields=["user", "created_at"]),
+        ]
         ordering = ["-created_at"]  # LIFO
