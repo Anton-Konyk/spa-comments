@@ -440,7 +440,8 @@ export default {
 
     onMounted(async () => {
       await fetchConfig();
-      await fetchPage(1); // initial load with '-created_at'
+      // await fetchPage(1); // initial load with '-created_at'
+      await serverSortBy(sortField.value, sortDirection.value);
       await fetchCurrentUser();
 
       wsCtl = useCommentsWS({ onEvent: handleWsEvent });
