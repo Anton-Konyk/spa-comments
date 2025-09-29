@@ -447,6 +447,7 @@ export default {
 
     return {
       // state
+      visibleComments,
       comments,
       loading,
       currentPage,
