@@ -80,8 +80,14 @@
           </tr>
         </thead>
         <tbody>
+          <!--          <tr-->
+          <!--            v-for="comment in visibleComments"-->
+          <!--            :key="comment.id"-->
+          <!--            class="row"-->
+          <!--            @click="goToDetail(comment.id)"-->
+          <!--          >-->
           <tr
-            v-for="comment in visibleComments"
+            v-for="comment in comments"
             :key="comment.id"
             class="row"
             @click="goToDetail(comment.id)"
