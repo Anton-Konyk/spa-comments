@@ -31,6 +31,11 @@ export function useServerPagination({
       const clamped = Math.min(Math.max(1, page), totalPages.value);
       currentPage.value = clamped;
       return items.value;
+    } catch (e) {
+      console.error('fetchPage failed:', e);
+      items.value = [];
+      totalPages.value = 1;
+      currentPage.value = 1;
     } finally {
       loading.value = false;
     }
