@@ -12,7 +12,6 @@ from PIL import Image, UnidentifiedImageError, ImageOps, ImageSequence
 from io import BytesIO
 from django.core.files.base import ContentFile
 
-
 IMAGE_RESIZE_WIDTH = 320
 IMAGE_RESIZE_HEIGHT = 240
 MAX_TXT_FILE_SIZE = 100 * 1024
@@ -170,12 +169,12 @@ class Comment(models.Model):
                                     "P",
                                     palette=Image.ADAPTIVE,
                                     colors=256).save(
-                                        buf,
-                                        format="GIF",
-                                        optimize=True,
-                                        loop=0,
-                                        duration=im.info.get("duration", 100)
-                                    )
+                                    buf,
+                                    format="GIF",
+                                    optimize=True,
+                                    loop=0,
+                                    duration=im.info.get("duration", 100)
+                                )
                                 buf.seek(0)
                                 self.file = ContentFile(
                                     buf.read(),
@@ -223,9 +222,9 @@ class Comment(models.Model):
                                     im.seek(0)
                                     first = im.convert("RGBA")
                                     if (first.width >
-                                        IMAGE_RESIZE_WIDTH or first.height >
-                                        IMAGE_RESIZE_HEIGHT
-                                    ):
+                                            IMAGE_RESIZE_WIDTH
+                                            or first.height >
+                                            IMAGE_RESIZE_HEIGHT):
                                         first.thumbnail(
                                             (IMAGE_RESIZE_WIDTH,
                                              IMAGE_RESIZE_HEIGHT)
@@ -235,15 +234,15 @@ class Comment(models.Model):
                                         "P",
                                         palette=Image.ADAPTIVE,
                                         colors=256).save(
-                                            buf,
-                                            format="GIF",
-                                            optimize=True,
-                                            loop=0,
-                                            duration=im.info.get(
-                                                "duration",
-                                                100
-                                            )
+                                        buf,
+                                        format="GIF",
+                                        optimize=True,
+                                        loop=0,
+                                        duration=im.info.get(
+                                            "duration",
+                                            100
                                         )
+                                    )
                                     buf.seek(0)
                                     self.file = ContentFile(
                                         buf.read(),
@@ -283,10 +282,10 @@ class Comment(models.Model):
                                 "P",
                                 palette=Image.ADAPTIVE,
                                 colors=256).save(
-                                    buf,
-                                    format="GIF",
-                                    optimize=True
-                                )
+                                buf,
+                                format="GIF",
+                                optimize=True
+                            )
                             buf.seek(0)
                             self.file = ContentFile(
                                 buf.read(),
