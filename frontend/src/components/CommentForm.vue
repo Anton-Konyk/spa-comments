@@ -75,7 +75,8 @@
  * FRONTEND VALIDATION (mirrors backend policy):
  * - Images: allow JPG/PNG/GIF.
  *   - JPG/PNG: if larger than 320×240, downscale proportionally on the client before upload.
- *   - GIF: must be ≤ 320×240 (animation is not resized on the client); larger GIFs are rejected.
+ *    GIF: forwarded as-is (animation kept). Server will resize/limit if needed.
+ *    Optionally reject by size if VITE_MAX_GIF_BYTES is set.
  * - TXT: only .txt, max size 100 KB.
  *
  * HTML policy for text:
@@ -85,6 +86,7 @@
  *
  * Toolbar inserts/Wraps the allowed tags. <a> asks for URL and optional title.
  */
+
 import { ref, onMounted, watch, computed, nextTick } from 'vue';
 import { useRouter } from 'vue-router';
 import client from '@/utils/client.js';
@@ -110,6 +112,9 @@ const successMessage = ref('');
 const MAX_IMG_W = 320;
 const MAX_IMG_H = 240;
 const MAX_TXT_BYTES = 100 * 1024;
+
+// Optional soft cap for GIF size (0 = no cap). Example: VITE_MAX_GIF_BYTES=5242880 (5 MB)
+const MAX_GIF_BYTES = Number(import.meta.env.VITE_MAX_GIF_BYTES || 0);
 
 const IMG_MIME_WHITELIST = ['image/jpeg', 'image/png', 'image/gif'];
 
@@ -328,20 +333,11 @@ const handleFileChange = async (e) => {
     return;
   }
 
-  // GIF: don't change it (to avoid breaking the animation)
-  // If it's larger than 320×240, we disable it.
+  // GIF: send as-is; backend will resize/limit animation safely.
+  // Optional size cap if VITE_MAX_GIF_BYTES is set.
   if (isGif(f)) {
-    try {
-      const { width, height } = await loadImage(f);
-      if (width > MAX_IMG_W || height > MAX_IMG_H) {
-        errorMessage.value = 'GIF must be at most 320×240 (animation resize is not supported).';
-        e.target.value = '';
-        file.value = null;
-        return;
-      }
-    } catch {
-      // if you couldn't read it, we'll cover ourselves with a ban
-      errorMessage.value = 'Failed to read GIF image.';
+    if (MAX_GIF_BYTES && f.size > MAX_GIF_BYTES) {
+      errorMessage.value = `GIF is too large (>${Math.round(MAX_GIF_BYTES / 1024 / 1024)} MB).`;
       e.target.value = '';
       file.value = null;
       return;
