@@ -17,7 +17,8 @@ export function useServerPagination({
   async function fetchPage(page = 1) {
     loading.value = true;
     try {
-      const params = { page, ordering: ordering.value };
+      // const params = { page, ordering: ordering.value };
+      const params = { page, ordering: ordering.value, format: 'json' };
       const { data } = await client.get(endpoint, { params });
 
       const list = Array.isArray(data) ? data : data.results || [];
